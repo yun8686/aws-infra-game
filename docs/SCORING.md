@@ -1,7 +1,7 @@
 # Missions and Scoring
 
 Version: 1
-Source of truth: `src/domain/missions/`, `src/domain/scoring/evaluate.ts`, `src/data/missions/`.
+Source of truth: `src/game/` (missions, `evaluate.ts`), `src/content/missions.ts`. Reference solutions: `tests/game/solutions.ts`.
 
 All thresholds are **game-balance values** and are shown to the player. There are no hidden criteria.
 

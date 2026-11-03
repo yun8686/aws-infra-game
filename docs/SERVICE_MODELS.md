@@ -1,80 +1,58 @@
-# Service Models (MVP)
+# Service Models
 
-Version: 0.1
-Status: Phase 3. Simulation behavior and numbers: `docs/SIMULATION_MODEL.md`.
+Version: 0.2 (diagram model, ADR 0018)
+Status: Rebuild. Simulation behavior and numbers: `docs/SIMULATION_MODEL.md`. Design: `docs/REBUILD.md`.
 
 All services are **educational abstractions**. Parameters are deliberately reduced and do not mirror the AWS console. Capacity, latency and cost values are game-balance assumptions, not AWS facts.
 
-Source of truth in code: `src/domain/catalog/`.
+Source of truth in code: `src/model/` (schema, catalog, commands, validation).
 
-## Connection types
+## Frames
 
-| Type | Semantic | Direction | Allowed pairs |
+Frames are the boxes of an AWS architecture diagram. Each has one parent; the Region is the root and the AWS Cloud box is drawn around it.
+
+| Frame | Inside | Settings | Notes |
 |---|---|---|---|
-| `placed_in` | structural placement | child → container | Subnet → VPC, Security Group → VPC, ALB / EC2 (one subnet) / Auto Scaling / RDS → Subnet |
-| `routes_to` | request traffic | upstream → downstream | Internet → ALB, Internet → EC2, ALB → EC2, ALB → Auto Scaling |
-| `data_access` | DB queries | client → database | EC2 → RDS, Auto Scaling → RDS (config: `poolSize`) |
-| `secured_by` | firewall attachment | resource → SG | ALB / EC2 / Auto Scaling / RDS → Security Group |
-| `monitors` | observability | CloudWatch → target | CloudWatch → ALB / EC2 / Auto Scaling / RDS |
+| Region | — | — | One per diagram, system-managed. |
+| VPC | Region | `cidr` | Informational only; overlap is not checked. |
+| AZ | VPC | `zone` (`az-a` / `az-b` / `az-c`, fictional) | Unique per VPC. Drawn inside the VPC as in AWS diagrams (in AWS an AZ belongs to the Region; the box means "the part of this VPC in that zone"). |
+| Subnet | AZ | `tier` (`public` / `private`), `cidr` | Internet Gateway, NAT Gateway and route tables are not modeled: `public` means "reachable from the Internet when security groups allow it". |
 
-Visual grouping (VPC / subnet boxes, AZ lanes) is derived from `placed_in`. Layout positions are stored outside the graph.
+## Resources
 
-## Services
+| Resource | Placed in | Settings |
+|---|---|---|
+| Users | outside the cloud | System-managed entry for scenario traffic, exactly one. |
+| EC2 instance | Subnet | `size` (`small`…`xlarge`), `apps`, `securityGroupIds`. One instance (ADR 0015); more servers are more EC2 resources ("同じ設定でもう1台"). Port 80. |
+| Application Load Balancer | VPC | `scheme`, `listener` (http 80 / https 443), `healthCheck` (`intervalSec`, `unhealthyThreshold`), `subnetIds` (≥ 2 AZs; public if internet-facing), `securityGroupIds`. |
+| Auto Scaling group | VPC | `size`, `min` ≤ `desired` ≤ `max` (1–50), `targetCpuPct`, `warmupSec`, `apps`, `subnetIds`, `securityGroupIds`. Holds its own instances; replaces failed ones. Port 80. |
+| RDS database | VPC | `instanceClass`, `storageTier`, `multiAz`, `subnetIds` (DB subnet group; Multi-AZ needs 2 AZs), `securityGroupIds`. Port 5432. |
+| Security group | VPC | `inbound[]`: `port` (1–65535 or `all`) and source (`anywhere`, `vpc`, or another security group). Outbound always allowed; allow-only rules. A resource with no security group receives nothing. |
+| CloudWatch | Region | `alarms[]`. At most one. Observability; not needed for scaling. |
 
-### Internet (`external.internet`)
-- Not an AWS service. Fixed entry point for scenario traffic.
-- System-managed: the player cannot add or delete it. Exactly one per playable graph.
+Load balancers, Auto Scaling groups and databases sit in the VPC frame and list the subnets they span, as they are drawn in AWS diagrams. Every referenced subnet and security group must be in the resource's VPC.
 
-### VPC (`network.vpc`)
-- Config: `cidr` (IPv4 CIDR notation, informational only; overlap is not checked in MVP).
+## Links
 
-### Subnet (`network.subnet`)
-- Config: `tier` (`public` | `private`), `az` (`az-a` | `az-b` | `az-c`, fictional), `cidr`.
-- Placement: exactly one VPC.
-- Simplification: Internet Gateway, NAT Gateway and route tables are not modeled. `tier: public` means "reachable from the Internet when allowed by security groups".
+| Kind | From → to | Settings |
+|---|---|---|
+| `traffic` | Users → ALB / EC2, ALB → EC2 / Auto Scaling | — |
+| `data` | EC2 / Auto Scaling → RDS | `poolSize` (connections per instance) |
 
-### Security Group (`network.security_group`)
-- Config: `inboundRules[]` with `port` (1–65535 or `all`) and `source` (`anywhere` | `vpc` | another security group node).
-- Placement: exactly one VPC. Attached to resources via `secured_by`; resources must be in the same VPC.
-- Simplifications: outbound is always allowed; protocols are not distinguished; rules are allow-only.
-- A resource with no security group receives no inbound traffic.
+There are no placement or attachment links; placement is the frame (or `subnetIds`), security groups are a setting.
 
-### Application Load Balancer (`lb.alb`)
-- Config: `scheme` (`internet-facing` | `internal`), `listener` (`http` → port 80, `https` → port 443), `healthCheck` (`intervalSec`, `unhealthyThreshold`).
-- Placement: 1–3 subnets, at least two different AZs. Internet-facing ALBs must use public subnets.
+## Mission policy
 
-### EC2 (`compute.ec2`)
-- **One instance** (ADR 0015).
-- Config: `instanceSize` (`small` | `medium` | `large` | `xlarge`), `apps` (applications it runs, ADR 0016; default `shop`).
-- Placement: exactly one subnet.
-- More fixed servers are more EC2 nodes ("同じ設定でもう1台" copies settings and connections). A failed instance stays failed for the run.
-- Application port: 80.
-- When targeted directly from the Internet, its subnet must be public.
-
-### Auto Scaling (`compute.autoscaling`)
-- An independent node holding the instance spec and scaling policy (EC2 nodes are not attached to it).
-- Config: `instanceSize`, `minCapacity` ≤ `desiredCapacity` ≤ `maxCapacity` (1–50), `targetCpuPct` (10–90), `warmupSec`, `apps` (ADR 0016).
-- Scaling does not require a CloudWatch node. `warmupSec` is the time before a new instance is in service (minimum 60 s).
-- Replaces failed instances automatically; fixed EC2 groups do not.
-- Application port: 80.
-
-### RDS (`database.rds`)
-- Config: `instanceClass` (`db.small` | `db.medium` | `db.large` | `db.xlarge`), `storageTier` (`standard` | `provisioned`), `multiAz`.
-- Connection limit is derived from the instance class (Phase 2 balance table).
-- Placement: 1–3 subnets (DB subnet group abstraction). `multiAz: true` requires subnets in two AZs.
-- Database port: 5432.
-
-### CloudWatch (`monitoring.cloudwatch`)
-- Config: `alarms[]` with `metric` (`cpu` | `errorRate` | `latency` | `dbConnections`) and `threshold`.
-- Provides alarms and observability; not required for scaling.
+- `lockedIds`: resources the customer requires. They can be reconfigured but not removed, and the subnets / security groups they use cannot be removed either.
+- `allowedTypes`: limits what can be added.
 
 ## Validation
 
-Findings are structured (`code`, `severity`, `category`, affected node/connection IDs, `params`, optional `riskLevel`). Text is resolved from i18n keys (`src/data/i18n/ja/findings.ts`).
+Findings are structured (`code`, `severity`, `targetIds`, `params`, optional `riskLevel`). Text: `src/i18n/findings.ts`.
 
-- **error**: simulation cannot run (e.g. no entry, invalid config, invalid placement, no request path).
-- **warning**: simulation runs but outcome or score may suffer (e.g. unreachable compute, traffic blocked by a security group, security exposure).
-- **info**: advisory.
+- **error**: the simulation cannot run (structure problems, missing subnets, ALB without two AZs, internet-facing ALB in a private subnet, Multi-AZ without two AZs, Users → private EC2 or internal ALB, no request path).
+- **warning**: runs but suffers (no security group, traffic blocked by a security group, ALB without targets, unreachable server, unused database, server without a database, app not served).
+- **info**: every serving server in one AZ.
 
 Security findings carry a `riskLevel`:
 
@@ -83,5 +61,5 @@ Security findings carry a `riskLevel`:
 | DB port (5432) open to `anywhere` | critical |
 | All ports open to `anywhere` | critical |
 | Admin port (22 / 3389) open to `anywhere` | major |
-| RDS placed in a public subnet | major |
-| EC2 receives Internet traffic directly (no load balancer) | minor |
+| RDS using a public subnet | major |
+| EC2 receives traffic directly from Users (no load balancer) | minor |

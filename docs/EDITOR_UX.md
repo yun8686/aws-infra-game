@@ -1,37 +1,32 @@
-# Infrastructure Editor UX (MVP)
+# Editor UX — drawing the architecture diagram
 
-Status: Phase 5. Code: `src/features/infrastructure-editor/`.
+Status: Rebuild (ADR 0018). Code: `src/features/editor/`, `src/features/diagram/`.
 
-Every core operation works with taps only (ADR 0002). Dragging is never required.
+## Principles
 
-## Layout (portrait phone)
+- Every operation is a tap; nothing needs dragging (ADR 0002). Keyboard operation is out of scope for now (ADR 0014).
+- The player draws a standard AWS architecture diagram: AWS Cloud › Region › VPC › AZ › Subnet frames with the official AWS Architecture Icons.
 
-- Toolbar: **＋ 追加** (add service), **構成チェック** badge (⛔ errors / ⚠ warnings / ✓ OK), **一覧 / 図** toggle, undo ↶, redo ↷.
-- Canvas: drill-down (ADR 0017). The **overview** shows Internet → load balancer → servers (one box per set of apps) → database with one arrow between layers and a summary in each box; tap a layer to open it (breadcrumb 「全体 › サーバー」 to go back), or tap a single-resource layer to open its settings. Inside a layer the resources are drawn in the tier × AZ layout (ADR 0005) with the neighbouring layers named as 「↑ … から」「↓ … へ」. 「ネットワーク・セキュリティ」 opens the placement map. Under 「サブネットごとに見る」 (a grid of AZ columns × public/private rows), a subnet card opens that subnet with the resources placed in it side by side (no arrows). Changing view scrolls the breadcrumb into sight. Zoom: 標準 / ×1.5 / ×2, panning by native scrolling.
-  - Servers (EC2, Auto Scaling) are drawn **once per AZ** they are placed in, joined by a dotted line, so nothing appears to straddle subnets. A Multi-AZ database shows its primary and a dashed standby; a single-AZ database is drawn only in its primary AZ. Load balancers are regional managed services: they are drawn inside the VPC but above the AZ/subnet boxes, with dotted placement lines to the public subnets they use (AWS still places a load balancer node in each of those subnets, which is why at least two AZs are required).
-  - Bands follow where resources actually are: a server placed in a public subnet is drawn in the public band.
-  - Every box carries a one-line summary of its key settings (e.g. `small × 2台`, `small・2〜14台`, `db.large・プライマリ`, `HTTP・インターネット向け`).
-  - Selecting a resource emphasises its security groups and subnets.
-- Node sheet starts with an **overview** in plain language: placement, instance counts per AZ, redundancy, protecting security groups with their inbound rules, request sources/targets, database and pool size.
-- Bottom sheet: one at a time, non-modal, expandable via the grip button. Selecting a resource scrolls it into view above the sheet.
-- Toast with **元に戻す** after add / connect / delete.
+## Navigating
 
-## Operations
+- The editor opens on the VPC (or the Region when there is none). **Tap a frame** (VPC, AZ, subnet) to open it; the **breadcrumb** (リージョン › shop-vpc › AZ a › private-a) goes back out. The open frame is kept per project while switching tabs.
+- **Region view**: Users above the AWS Cloud box; each VPC is a box with a preview of what it contains (icons × count).
+- **VPC view**: AZ columns, subnets as rows (public first). EC2 instances are icons inside their subnet. Load balancers, Auto Scaling groups and databases are **bands** across the subnets they use; security groups and resources whose subnets are on different rows sit in the "VPC 共通" area.
+- **AZ / subnet view**: the subnets with their contents in request order — load balancer bands, then servers, then databases.
+- **Arrows**: traffic solid, database access dashed. Arrows into bands run straight up or down. A neighbour outside the open frame is named at the frame edge ("shop-alb から").
 
-| Task | Taps |
-|---|---|
-| Inspect / configure | Tap a node, chip, subnet or VPC area, or an item in the list view → sheet with fields generated from `config/fieldSpecs.ts` |
-| Add a service | ＋ 追加 → pick from categories (system and mission-disallowed services are hidden) → for services that need placement, the **配置先を選択** step opens immediately |
-| Connect | Node sheet → 接続を追加 → valid targets are highlighted on the canvas and listed in the sheet; invalid ones are dimmed and explain why when tapped. Direction is inferred, so tap order does not matter. If several connection types fit, a chooser appears |
-| Edit a connection | Tap a traffic/data line, or a connection in the node sheet |
-| Choose apps (multi-app missions) | EC2 / Auto Scaling sheet → **動かすアプリ** checkboxes (the last app cannot be removed); boxes show the apps line, e.g. `ショップ・受注` |
-| Add another identical server | EC2 sheet → **＋ 同じ設定でもう1台** → choose its subnet (size, security groups, load balancer and database connections are copied) |
-| Delete | Node sheet → 削除 → confirmation lists connections and security-group rules removed with it → undo available |
-| Fix problems | 構成チェック → tap a finding → its resource opens |
+## Building
 
-## Editing rules
+- **＋ 追加** lists only what can be placed in the open frame: Region → VPC, CloudWatch; VPC → AZ, ALB, Auto Scaling, RDS, security group; AZ → public / private subnet; subnet → EC2.
+- New load balancers, Auto Scaling groups and databases get suggested subnets (one per AZ; public for an internet-facing ALB, private otherwise).
+- **Resource sheet** (tap an icon): findings for it; **→ つなぐ** buttons for the links it can start; its links (with pool size for database links and a × to disconnect); settings as tap-to-toggle choices and steppers (size, apps, subnets, security groups, scaling, health checks, Multi-AZ, rules); name; **同じ設定でもう1台** for EC2; delete.
+- **Connect mode**: valid targets are highlighted on the diagram and listed in a compact sheet, so a target outside the open frame can still be chosen. Each tap adds a link; close to finish.
+- **Frame settings** (⚙ under the breadcrumb): subnet tier, AZ zone, name; delete the frame with everything inside it.
+- **Delete** shows what goes with it (frames, resources, links). Locked resources (mission) cannot be deleted; neither can the subnets or security groups they use.
+- **Undo / redo** in the toolbar and in each toast.
+- **構成チェック** (⛔ errors / ⚠ warnings / ✓): tapping a finding opens the frame of the resource and its sheet.
 
-- All edits go through domain commands with the mission's edit policy; rejected edits never change the graph.
-- Form changes use a draft: a valid value is applied immediately (one undo step); an invalid combination (e.g. min > max capacity) stays visible with an explanation until fixed.
-- Locked resources show 🔒; delete is disabled with the reason shown.
-- Errors block simulation; warnings do not.
+## Accessibility
+
+- Diagram items are buttons whose accessible name is their visible text (name, plus service or status for bands and monitored items); extra state is in `<desc>`.
+- The whole area of a frame is tappable, not only its outline. Touch targets in sheets are at least 44 px.

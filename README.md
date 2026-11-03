@@ -32,11 +32,12 @@ npm run dev      # 開発サーバー
 npm run check    # 型チェック・lint・整形チェック・テスト
 npm run test:e2e # スマホ画面サイズでの E2E テスト（Playwright）
 npm run playtest # 同じ Wi-Fi のスマホから遊べるように起動（手順は docs/PLAYTEST.md）
-npm run sim -- --scenario tv-spike --set ec2-1.instanceCount=12   # シミュレーションをコマンドラインで実行
+npm run sim -- --scenario tv-spike --set db-1.instanceClass=db.large  # シミュレーションをコマンドラインで実行
 npm run sim -- --mission tv-spike                                  # ミッションの条件で実行して評価
 ```
 
-- ドメインロジック（`src/domain/`）は UI に依存しない純粋な TypeScript です。
+- ドメインロジック（`src/model/` 構成図モデル、`src/sim/` シミュレーション、`src/game/` ミッション・評価）は UI に依存しない純粋な TypeScript です。設計は `docs/REBUILD.md` を参照してください。
+- 構成図のアイコンは AWS 公式の Architecture Icons を使用しています（`src/assets/aws-icons/SOURCE.md`）。
 - サービスごとのモデルと簡略化の内容は `docs/SERVICE_MODELS.md` を参照してください。
 - シミュレーションの計算式とバランス値は `docs/SIMULATION_MODEL.md` を参照してください。
 - ミッションの定義と採点ルールは `docs/SCORING.md` を参照してください。

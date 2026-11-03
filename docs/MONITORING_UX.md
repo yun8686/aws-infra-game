@@ -1,15 +1,15 @@
 # Monitoring and Results UX (MVP)
 
-Status: Phase 6. Code: `src/features/monitoring/`, `src/features/simulation-results/`, `src/shared/ui/charts/`.
+Status: Phase 6; diagram overlay updated for the rebuild (ADR 0018). Code: `src/features/monitoring/`, `src/features/simulation-results/`, `src/shared/ui/charts/`.
 
 ## Monitor tab
 
 - **Playback bar** (sticky): play/pause, time slider, and the headline values at the selected minute (offered rps, error rate, latency, cost/hour). Computation is instant; playback only moves the playhead (ADR 0008).
-- **Graph overlay**: the architecture at the selected minute. Compute nodes show CPU load and running instances, databases show load or connection overload or "停止中". Status uses icon + text + color (✓ / ⚠ ≥ 70% / ⛔ ≥ 90%, overload or down) — never color alone. Tapping a node opens it in the editor.
+- **Diagram overlay**: the same AWS diagram as the editor, with its own drill-down, at the selected minute. EC2 shows CPU or 停止, Auto Scaling CPU and running instances, databases load, connection overload or "停止中", load balancers rps. Status is text + color (ok / ≥ 70% / ≥ 90%, overload or down) — never color alone. Tapping a resource opens it in the editor.
 - **Timeline**: events within ±5 minutes of the playhead (scenario events in bold), plus the full list; tapping an event jumps to it.
 - **Charts** (one y-axis each, small multiples): requests (offered vs successful), error rate (with objective), latency (with p95 objective), compute CPU and running instances (per compute node), database connections (with limit) and load, cost per hour. Up to three resources per chart.
 - Every chart shares the playhead: drag horizontally or use arrow keys on a focused chart; the readout above the plot shows the values. Each chart has a 5-minute table view.
-- When the graph changes after a run, a stale notice offers to re-run.
+- When the diagram changes after a run, a stale notice offers to re-run.
 
 ## Results tab
 

@@ -88,3 +88,12 @@ startProject(mission) → workingGraph = clone(initialGraph)
 Phase 0〜7 を完了。受け入れ条件とテストの対応は `docs/ACCEPTANCE.md` を参照。
 - 追加の決定: ADR 0013（PWA / オフライン）、ADR 0014（キーボード操作は当面対象外）。
 - 残課題: 人によるプレイテスト（理解しやすさ・難易度）、ストア配布（Capacitor）、製品名の商標確認。
+
+## 8. 作り直し（2026-11-03）
+
+オーナーの依頼により、「AWS の構成図を作っていく体験」を中心に作り直した（ADR 0018、`docs/REBUILD.md`）。
+
+- 構成データ: 枠（リージョン › VPC › AZ › サブネット）＋ 枠に置くリソース ＋ 接続（リクエスト・データ）。`src/model`
+- シミュレーション・評価・ミッションは同じ式とバランスを新モデルに移植（engine 5）。`src/sim`、`src/game`、`src/content`
+- 画面: 枠をタップして中に入るドリルダウン、パンくず、AWS 公式アイコン、開いている枠の中への追加。`src/features/diagram`、`src/features/editor`
+- 本節より前の記述（`src/domain` の構成、`placed_in` 接続など）は作り直し前のもの。

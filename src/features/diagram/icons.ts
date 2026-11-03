@@ -45,4 +45,8 @@ export const GROUP_ICONS = {
   publicSubnet: same(publicSubnet),
   privateSubnet: same(privateSubnet),
   autoScaling: same(asgGroup),
+  /** AWS has no AZ icon (AZs are dashed boxes in diagrams); a dashed box in the AZ colour. */
+  availabilityZone: same(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><rect x="4" y="6" width="32" height="28" rx="3" fill="none" stroke="#147EBA" stroke-width="2.5" stroke-dasharray="5 3"/></svg>',
+  ),
 } as const satisfies Record<string, IconSource>;

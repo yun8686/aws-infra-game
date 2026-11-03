@@ -113,4 +113,6 @@ A scripted novice walkthrough and an exploit search were run before involving pe
 
 | 7 | サブネット単位でドリルダウンできるように（同じサブネットの EC2 と DB が並んで見える） | Subnet cards on the overview (AZ × public/private grid); the subnet view shows its resources side by side (ADR 0017 addendum). A first per-AZ version was replaced per follow-up feedback |
 
-Open questions for human players: whether the four-connection Auto Scaling setup is discoverable without hint 3, whether "availability" (share of minutes with ≤ 5% errors) is understood, and whether 180 s default warm-up feels fair.
+| 8 | 今の状態を無視して作り直したい。AWS の一般的な構成図をイメージして、枠で囲まれている単位でドリルダウン。ユーザーは AWS の構成図を作っていく体験に | ADR 0018 rebuild: frames リージョン › VPC › AZ › サブネット with official AWS icons; tap a frame to open it, breadcrumb to go back; add inside the open frame; spanning resources drawn as bands; internals rewritten (`docs/REBUILD.md`). Both missions re-verified with reference-solution tests; the E2E solves mission 1 and builds a diagram from an empty Region with taps only |
+
+Open questions for human players: whether players find where to add things (open the right frame first) and how to connect Auto Scaling to the load balancer and database without hint 3, whether "availability" (share of minutes with ≤ 5% errors) is understood, and whether 180 s default warm-up feels fair.

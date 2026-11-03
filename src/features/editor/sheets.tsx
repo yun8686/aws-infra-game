@@ -134,7 +134,7 @@ export function AddSheet({
               k === 'vpc'
                 ? '専用の仮想ネットワーク。この中に AZ とサブネットを作ります。'
                 : 'データセンターの区画。複数の AZ に分けると障害に強くなります。',
-            icon: k === 'az' ? GROUP_ICONS.region : frameIcon(k),
+            icon: k === 'az' ? GROUP_ICONS.availabilityZone : frameIcon(k),
           },
         ],
   );
