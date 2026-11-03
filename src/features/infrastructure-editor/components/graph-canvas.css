@@ -1,0 +1,98 @@
+.graph-canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  touch-action: manipulation;
+  user-select: none;
+  font-family: inherit;
+}
+.zone rect {
+  fill: var(--zone-fill);
+  stroke: var(--zone-stroke);
+  stroke-width: 1;
+}
+.zone-vpc rect {
+  fill: none;
+  stroke: var(--vpc-stroke);
+  stroke-dasharray: 6 4;
+}
+.zone-subnet rect {
+  fill: var(--subnet-fill);
+}
+.zone text {
+  font-size: 9px;
+  fill: var(--muted);
+}
+.edge {
+  stroke: var(--edge);
+  stroke-width: 1.5;
+}
+.edge-data_access {
+  stroke-dasharray: 4 3;
+}
+.edge-arrow {
+  fill: var(--edge);
+}
+.node {
+  cursor: pointer;
+}
+.node rect {
+  fill: var(--node-fill);
+  stroke: var(--node-stroke);
+  stroke-width: 1.5;
+}
+.node-lb rect {
+  stroke: var(--accent-lb);
+}
+.node-compute rect {
+  stroke: var(--accent-compute);
+}
+.node-database rect {
+  stroke: var(--accent-db);
+}
+.node-external rect {
+  stroke: var(--accent-ext);
+}
+.node.is-selected rect,
+.chip.is-selected rect {
+  stroke: var(--selected);
+  stroke-width: 3;
+}
+.node-type {
+  font-size: 10px;
+  font-weight: 700;
+  fill: var(--muted);
+}
+.node-name {
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--text);
+}
+.node-sg {
+  font-size: 10px;
+  fill: var(--muted);
+}
+.chip {
+  cursor: pointer;
+}
+.chip rect {
+  fill: var(--chip-fill);
+  stroke: var(--node-stroke);
+}
+.chip text {
+  font-size: 11px;
+  fill: var(--text);
+}
+.graph-canvas,
+.graph-canvas * {
+  -webkit-tap-highlight-color: transparent;
+}
+.node:focus,
+.chip:focus {
+  outline: none;
+}
+.node:focus-visible rect,
+.chip:focus-visible rect {
+  stroke: var(--selected);
+  stroke-dasharray: 4 2;
+}
