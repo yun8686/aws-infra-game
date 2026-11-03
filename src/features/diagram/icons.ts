@@ -14,6 +14,7 @@ import autoScaling from '../../assets/aws-icons/service-ec2-auto-scaling.svg?raw
 import rds from '../../assets/aws-icons/service-rds.svg?raw';
 import cloudwatch from '../../assets/aws-icons/service-cloudwatch.svg?raw';
 import elb from '../../assets/aws-icons/service-elb.svg?raw';
+import igw from '../../assets/aws-icons/resource-internet-gateway.svg?raw';
 import users from '../../assets/aws-icons/general-users.svg?raw';
 import usersDark from '../../assets/aws-icons/general-users-dark.svg?raw';
 import shield from '../../assets/aws-icons/general-shield.svg?raw';
@@ -30,6 +31,7 @@ const same = (svg: string): IconSource => ({ light: uri(svg), dark: uri(svg) });
 
 export const RESOURCE_ICONS: Readonly<Record<ResourceType, IconSource>> = {
   users: { light: uri(users), dark: uri(usersDark) },
+  igw: same(igw),
   alb: same(elb),
   ec2: same(ec2),
   asg: same(autoScaling),

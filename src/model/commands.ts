@@ -107,7 +107,10 @@ const referencesInsideVpc = (
   config: Record<string, unknown>,
 ): boolean => {
   const vpc = vpcOfFrame(d, frameId);
-  const subnetIds = (config.subnetIds as string[] | undefined) ?? [];
+  const subnetIds = [
+    ...((config.subnetIds as string[] | undefined) ?? []),
+    ...(typeof config.standbySubnetId === 'string' ? [config.standbySubnetId] : []),
+  ];
   const sgIds = (config.securityGroupIds as string[] | undefined) ?? [];
   const rules = (config.inbound as { source: { kind: string; sgId?: string } }[] | undefined) ?? [];
   const sgRefs = [
@@ -232,6 +235,12 @@ export const addResource = <T extends ResourceType>(
     listResources(d).filter((r) => r.type === type).length >= def.maxPerDiagram
   ) {
     return reject('edit.max_reached', [], { type, max: def.maxPerDiagram });
+  }
+  if (
+    def.maxPerFrame !== undefined &&
+    listResources(d).filter((r) => r.type === type && r.frameId === frameId).length >= def.maxPerFrame
+  ) {
+    return reject('edit.max_reached', [frameId], { type, max: def.maxPerFrame });
   }
 
   const id = opts.id ?? nextId(d, def.idPrefix);
@@ -444,8 +453,16 @@ export const remove = (d: Diagram, id: string, policy: EditPolicy = {}): EditRes
   for (const r of listResources(d)) {
     if (!isLocked(policy, r.id)) continue;
     if (removedResources.has(r.id)) return reject('edit.locked', [r.id]);
-    const cfg = r.config as { subnetIds?: string[]; securityGroupIds?: string[] };
-    const refs = [...(cfg.subnetIds ?? []), ...(cfg.securityGroupIds ?? [])];
+    const cfg = r.config as {
+      subnetIds?: string[];
+      securityGroupIds?: string[];
+      standbySubnetId?: string | null;
+    };
+    const refs = [
+      ...(cfg.subnetIds ?? []),
+      ...(cfg.securityGroupIds ?? []),
+      ...(cfg.standbySubnetId ? [cfg.standbySubnetId] : []),
+    ];
     if (refs.some((ref) => removedFrames.has(ref) || removedResources.has(ref)))
       return reject('edit.locked', [r.id]);
   }
@@ -458,6 +475,8 @@ export const remove = (d: Diagram, id: string, policy: EditPolicy = {}): EditRes
     if (removedResources.has(r.id)) continue;
     const cfg = { ...(r.config as Record<string, unknown>) };
     if (Array.isArray(cfg.subnetIds)) cfg.subnetIds = withoutIds(cfg.subnetIds as string[], removedFrames);
+    if (typeof cfg.standbySubnetId === 'string' && removedFrames.has(cfg.standbySubnetId))
+      cfg.standbySubnetId = null;
     if (Array.isArray(cfg.securityGroupIds))
       cfg.securityGroupIds = withoutIds(cfg.securityGroupIds as string[], removedResources);
     if (r.type === 'sg') {

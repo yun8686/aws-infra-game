@@ -71,7 +71,7 @@ export interface Standard {
   sgDb: string;
 }
 
-/** A healthy two-AZ web stack: ALB → two EC2 (one per AZ) → RDS, with tight security groups. */
+/** A healthy two-AZ web stack: IGW, ALB → two EC2 (one per AZ) → RDS in private-a, tight security groups. */
 export const standardStack = (): Standard => {
   const b = new DiagramBuilder();
   const vpc = b.frame('vpc', REGION_ID);
@@ -87,7 +87,8 @@ export const standardStack = (): Standard => {
   const alb = b.resource('alb', vpc, { securityGroupIds: [sgAlb] });
   const webA = b.resource('ec2', privA, { securityGroupIds: [sgWeb] });
   const webB = b.resource('ec2', privB, { securityGroupIds: [sgWeb] });
-  const db = b.resource('rds', vpc, { securityGroupIds: [sgDb] });
+  const db = b.resource('rds', privA, { securityGroupIds: [sgDb] });
+  b.resource('igw', vpc);
   b.link('traffic', USERS_ID, alb);
   b.link('traffic', alb, webA);
   b.link('traffic', alb, webB);

@@ -123,7 +123,8 @@ describe('free construction uses the same pipeline', () => {
     const alb = b.resource('alb', vpc, { securityGroupIds: [sgAlb] });
     const web1 = b.resource('ec2', privA, { securityGroupIds: [sgWeb] });
     const web2 = b.resource('ec2', privA, { securityGroupIds: [sgWeb] });
-    const db = b.resource('rds', vpc, { securityGroupIds: [sgDb] });
+    const db = b.resource('rds', privA, { securityGroupIds: [sgDb] });
+    b.resource('igw', vpc);
     b.link('traffic', USERS_ID, alb);
     b.link('traffic', alb, web1);
     b.link('traffic', alb, web2);

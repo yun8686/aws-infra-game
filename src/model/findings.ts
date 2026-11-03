@@ -13,6 +13,8 @@ export const FINDING_CODES = [
   'placement.alb_requires_two_azs',
   'placement.internet_facing_requires_public_subnet',
   'placement.rds_multi_az_requires_two_azs',
+  'placement.rds_standby_required',
+  'placement.igw_required',
   'placement.internet_target_requires_public_subnet',
   'placement.single_az_compute',
   // links

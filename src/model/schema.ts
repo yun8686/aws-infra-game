@@ -21,7 +21,7 @@ export type DbClass = (typeof DB_CLASSES)[number];
 export const FRAME_KINDS = ['region', 'vpc', 'az', 'subnet'] as const;
 export type FrameKind = (typeof FRAME_KINDS)[number];
 
-export const RESOURCE_TYPES = ['users', 'alb', 'ec2', 'asg', 'rds', 'sg', 'cloudwatch'] as const;
+export const RESOURCE_TYPES = ['users', 'igw', 'alb', 'ec2', 'asg', 'rds', 'sg', 'cloudwatch'] as const;
 export type ResourceType = (typeof RESOURCE_TYPES)[number];
 
 export const LINK_KINDS = ['traffic', 'data'] as const;
@@ -96,11 +96,13 @@ export const resourceConfigSchemas = {
       message: 'capacity_order',
       path: ['desired'],
     }),
+  igw: z.object({}),
+  /** Placed in one subnet (the primary). Multi-AZ adds a standby in a subnet of another AZ. */
   rds: z.object({
     instanceClass: z.enum(DB_CLASSES),
     storageTier: z.enum(['standard', 'provisioned']),
     multiAz: z.boolean(),
-    subnetIds,
+    standbySubnetId: id.nullable(),
     securityGroupIds,
   }),
   sg: z.object({ inbound: z.array(sgRuleSchema).max(20) }),

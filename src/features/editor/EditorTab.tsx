@@ -16,6 +16,10 @@ import {
   linkCandidates,
   moveResource,
   regionOf,
+  resourcesOfType,
+  securityGroupIdsOf,
+  usersOfSecurityGroup,
+  type Diagram,
   remove,
   rename,
   updateConfig,
@@ -30,7 +34,7 @@ import { DiagramCanvas, type ItemMark } from '../diagram/DiagramCanvas';
 import { frameToShow } from '../diagram/layout';
 import {
   AddSheet,
-  ConnectSheet,
+  ConnectBanner,
   DeleteSheet,
   FrameSheet,
   ResourceSheet,
@@ -48,6 +52,26 @@ type Mode =
   | { readonly kind: 'connect'; readonly from: string; readonly link: LinkKind }
   | { readonly kind: 'validation' }
   | { readonly kind: 'delete'; readonly id: string; readonly back: Mode };
+
+/** Security groups and the resources that use them light up together. */
+const relatedMarks = (d: Diagram, id: string): Record<string, ItemMark> | undefined => {
+  const r = d.resources[id];
+  if (!r) return undefined;
+  const ids = r.type === 'sg' ? usersOfSecurityGroup(d, id).map((x) => x.id) : securityGroupIdsOf(r);
+  return ids.length > 0 ? Object.fromEntries(ids.map((x) => [x, 'related' as const])) : undefined;
+};
+
+/** Each security group shows how many resources it is attached to. */
+const securityGroupBadges = (d: Diagram) =>
+  Object.fromEntries(
+    resourcesOfType(d, 'sg').map((sg) => {
+      const n = usersOfSecurityGroup(d, sg.id).length;
+      return [
+        sg.id,
+        { text: n > 0 ? `${n}件に適用` : '未使用', level: n > 0 ? ('ok' as const) : ('warn' as const) },
+      ];
+    }),
+  );
 
 /** The open frame per project survives tab switches (in memory only). */
 const openFrames = new Map<string, string>();
@@ -127,7 +151,10 @@ export function EditorTab({
             candidates.some((c) => c.id === id) ? 'candidate' : id === mode.from ? 'candidate' : 'dimmed',
           ]),
         )
-      : undefined;
+      : mode.kind === 'resource'
+        ? relatedMarks(d, mode.id)
+        : undefined;
+  const badges = securityGroupBadges(d);
 
   const onSelect = (id: string) => {
     if (mode.kind === 'connect') {
@@ -194,54 +221,67 @@ export function EditorTab({
         </ul>
       </GuideCard>
 
-      <div className="editor-toolbar" role="toolbar" aria-label="構成図の操作">
-        <button
-          type="button"
-          className="tool-button"
-          disabled={!canUndo}
-          onClick={() => store.undo(projectId)}
-          aria-label="元に戻す"
-        >
-          ↶
-        </button>
-        <button
-          type="button"
-          className="tool-button"
-          disabled={!canRedo}
-          onClick={() => store.redo(projectId)}
-          aria-label="やり直す"
-        >
-          ↷
-        </button>
-        <span className="toolbar-spacer" />
-        <button
-          type="button"
-          className={`tool-button ${errorCount > 0 ? 'has-errors' : warningCount > 0 ? 'has-warnings' : 'is-clean'}`}
-          onClick={() => setMode({ kind: 'validation' })}
-        >
-          {errorCount > 0 ? `⛔ ${errorCount}` : warningCount > 0 ? `⚠ ${warningCount}` : '✓ OK'}
-          <span className="visually-hidden">構成チェック</span>
-        </button>
-        <button type="button" className="tool-button primary" onClick={() => setMode({ kind: 'add' })}>
-          ＋ 追加
-        </button>
-      </div>
-
-      <div className="editor-breadcrumb">
-        <Breadcrumb diagram={d} frameId={openId} onOpen={setFrame} />
-        {openFrame && openFrame.kind !== 'region' && (
-          <button
-            type="button"
-            className="text-button"
-            onClick={() => setMode({ kind: 'frame', id: openFrame.id })}
-          >
-            ⚙{' '}
-            {openFrame.kind === 'subnet'
-              ? TIER_LABEL[openFrame.config.tier]
-              : frameTitle(openFrame.kind, openFrame.name)}
-            の設定
-          </button>
+      <div className="editor-bar">
+        {mode.kind === 'connect' && d.resources[mode.from] ? (
+          <ConnectBanner
+            from={d.resources[mode.from]!}
+            kind={mode.link}
+            candidates={candidates}
+            onPick={onSelect}
+            onDone={() => setMode({ kind: 'resource', id: mode.from })}
+          />
+        ) : (
+          <div className="editor-toolbar" role="toolbar" aria-label="構成図の操作">
+            <button
+              type="button"
+              className="tool-button"
+              disabled={!canUndo}
+              onClick={() => store.undo(projectId)}
+              aria-label="元に戻す"
+            >
+              ↶
+            </button>
+            <button
+              type="button"
+              className="tool-button"
+              disabled={!canRedo}
+              onClick={() => store.redo(projectId)}
+              aria-label="やり直す"
+            >
+              ↷
+            </button>
+            <span className="toolbar-spacer" />
+            <button
+              type="button"
+              className={`tool-button ${errorCount > 0 ? 'has-errors' : warningCount > 0 ? 'has-warnings' : 'is-clean'}`}
+              onClick={() => setMode({ kind: 'validation' })}
+            >
+              {errorCount > 0 ? `⛔ ${errorCount}` : warningCount > 0 ? `⚠ ${warningCount}` : '✓ OK'}
+              <span className="visually-hidden">構成チェック</span>
+            </button>
+            <button type="button" className="tool-button primary" onClick={() => setMode({ kind: 'add' })}>
+              ＋ 追加
+            </button>
+          </div>
         )}
+        <div className="editor-crumbs">
+          <Breadcrumb diagram={d} frameId={openId} onOpen={setFrame} />
+          {openFrame && openFrame.kind !== 'region' && (
+            <button
+              type="button"
+              className="icon-button frame-settings"
+              onClick={() => setMode({ kind: 'frame', id: openFrame.id })}
+            >
+              ⚙
+              <span className="visually-hidden">
+                {openFrame.kind === 'subnet'
+                  ? TIER_LABEL[openFrame.config.tier]
+                  : frameTitle(openFrame.kind, openFrame.name)}
+                の設定
+              </span>
+            </button>
+          )}
+        </div>
       </div>
 
       <DiagramCanvas
@@ -250,6 +290,7 @@ export function EditorTab({
         selectedId={selectedId}
         issues={issues}
         marks={marks}
+        badges={badges}
         onOpenFrame={(id) => setFrame(id)}
         onSelect={onSelect}
       />
@@ -305,16 +346,6 @@ export function EditorTab({
           onRename={(name) => run((g) => rename(g, sheetFrame.id, name))}
           onDelete={() => setMode({ kind: 'delete', id: sheetFrame.id, back: mode })}
           onClose={() => setMode({ kind: 'idle' })}
-        />
-      )}
-
-      {mode.kind === 'connect' && d.resources[mode.from] && (
-        <ConnectSheet
-          from={d.resources[mode.from]!}
-          kind={mode.link}
-          candidates={candidates}
-          onPick={onSelect}
-          onDone={() => setMode({ kind: 'resource', id: mode.from })}
         />
       )}
 

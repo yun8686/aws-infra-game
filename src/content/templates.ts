@@ -18,7 +18,7 @@ const must = (r: EditResult, step: string): Diagram => {
  * Mission 1 starter: a small e-commerce site drawn as a standard two-AZ VPC.
  * Intentional weaknesses for the player to discover:
  * - both web servers are small EC2 instances in the same subnet (AZ a),
- * - the database is a small single-AZ instance.
+ * - the database is a small single-AZ instance in private-a (Multi-AZ off).
  * Built with the same edit commands the player uses, so it is always valid.
  */
 export const ecommerceStarter = (apps: readonly ('shop' | 'orders')[] = ['shop']): Diagram => {
@@ -89,13 +89,14 @@ export const ecommerceStarter = (apps: readonly ('shop' | 'orders')[] = ['shop']
     );
   }
   step(
-    addResource(d, 'rds', 'vpc-1', {
+    addResource(d, 'rds', 'subnet-3', {
       id: 'db-1',
       name: 'shop-db',
-      config: { subnetIds: ['subnet-3', 'subnet-4'], securityGroupIds: ['sg-3'] },
+      config: { securityGroupIds: ['sg-3'] },
     }),
     'db',
   );
+  step(addResource(d, 'igw', 'vpc-1', { id: 'igw-1', name: 'shop-igw' }), 'igw');
   step(connect(d, 'traffic', USERS_ID, 'alb-1'), 'users → alb');
   step(connect(d, 'traffic', 'alb-1', 'web-1'), 'alb → web-1');
   step(connect(d, 'traffic', 'alb-1', 'web-2'), 'alb → web-2');

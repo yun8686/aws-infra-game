@@ -139,6 +139,10 @@
 .badge-bad {
   fill: var(--bad);
 }
+.badge-role {
+  fill: var(--muted-strong);
+  font-weight: 400;
+}
 .band-rect {
   fill: var(--band-fill);
   stroke: var(--node-stroke);
@@ -174,6 +178,11 @@
   stroke-width: 2.5;
   stroke-dasharray: 4 3;
 }
+.item.is-related .item-hit,
+.item.is-related .band-rect {
+  stroke: var(--ok);
+  stroke-width: 2.5;
+}
 .item.is-dimmed {
   opacity: 0.35;
 }
@@ -200,6 +209,11 @@
 }
 .arrow-data .arrow-line {
   stroke-dasharray: 5 3;
+}
+.arrow-sync .arrow-line {
+  stroke: #c925d1;
+  stroke-dasharray: 2 3;
+  stroke-width: 2;
 }
 .arrowhead {
   fill: var(--edge);

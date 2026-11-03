@@ -101,14 +101,36 @@ export const zoneOfSubnet = (d: Diagram, subnetId: string): Zone | undefined =>
 export const subnetTier = (d: Diagram, subnetId: string): 'public' | 'private' | undefined =>
   getFrame(d, subnetId, 'subnet')?.config.tier;
 
-/** Subnets a resource uses: its own frame for EC2, its `subnetIds` for spanning resources. */
+/**
+ * Subnets a resource uses: its own subnet (EC2; RDS primary first, then its Multi-AZ standby),
+ * or `subnetIds` for resources that span subnets (load balancer, Auto Scaling).
+ */
 export const subnetIdsOf = (d: Diagram, r: Resource): string[] => {
   if (RESOURCE_DEFINITIONS[r.type].spansSubnets) {
     const ids = (r.config as { subnetIds: readonly string[] }).subnetIds;
     return [...ids].filter((id) => getFrame(d, id, 'subnet')).sort(compareIds);
   }
-  return r.frameId && getFrame(d, r.frameId, 'subnet') ? [r.frameId] : [];
+  const own = r.frameId && getFrame(d, r.frameId, 'subnet') ? [r.frameId] : [];
+  const standby = standbySubnetOf(d, r);
+  return standby ? [...own, standby] : own;
 };
+
+/** The subnet of a Multi-AZ database's standby, when set and valid. */
+export const standbySubnetOf = (d: Diagram, r: Resource): string | undefined =>
+  r.type === 'rds' &&
+  r.config.multiAz &&
+  r.config.standbySubnetId &&
+  getFrame(d, r.config.standbySubnetId, 'subnet')
+    ? r.config.standbySubnetId
+    : undefined;
+
+/** Resources that have a security group attached. */
+export const usersOfSecurityGroup = (d: Diagram, sgId: string): Resource[] =>
+  listResources(d).filter((r) => securityGroupIdsOf(r).includes(sgId));
+
+/** The Internet Gateway attached to a VPC, if any. */
+export const igwOf = (d: Diagram, vpcId: string | undefined) =>
+  vpcId ? listResources(d).find((r) => r.type === 'igw' && r.frameId === vpcId) : undefined;
 
 export const zonesOf = (d: Diagram, r: Resource): Zone[] => {
   const zones = new Set<Zone>();

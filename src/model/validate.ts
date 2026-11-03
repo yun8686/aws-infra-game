@@ -7,6 +7,7 @@ import {
   framesOfKind,
   getFrame,
   getResource,
+  igwOf,
   linksFrom,
   linksTo,
   listFrames,
@@ -67,8 +68,8 @@ const structureFindings = (d: Diagram): Finding[] => {
       continue;
     }
     const vpc = vpcOfFrame(d, r.frameId);
-    const cfg = r.config as { subnetIds?: string[] };
-    const badSubnet = (cfg.subnetIds ?? []).some(
+    const cfg = r.config as { subnetIds?: string[]; standbySubnetId?: string | null };
+    const badSubnet = [...(cfg.subnetIds ?? []), ...(cfg.standbySubnetId ? [cfg.standbySubnetId] : [])].some(
       (s) => !getFrame(d, s, 'subnet') || vpcOfFrame(d, s)?.id !== vpc?.id,
     );
     const badSg = securityGroupIdsOf(r).some((g) => {
@@ -134,12 +135,25 @@ const placementFindings = (d: Diagram): Finding[] => {
         out.push(finding('placement.internet_facing_requires_public_subnet', 'error', [r.id]));
       }
     }
-    if (r.type === 'rds' && r.config.multiAz && zones.length < 2) {
-      out.push(finding('placement.rds_multi_az_requires_two_azs', 'error', [r.id]));
-    }
+  }
+  for (const db of resourcesOfType(d, 'rds')) {
+    if (!db.config.multiAz) continue;
+    if (!db.config.standbySubnetId) out.push(finding('placement.rds_standby_required', 'error', [db.id]));
+    else if (zonesOf(d, db).length < 2)
+      out.push(finding('placement.rds_multi_az_requires_two_azs', 'error', [db.id]));
   }
   const users = resourcesOfType(d, 'users')[0];
   if (users) {
+    // Traffic from the Internet enters a VPC through its Internet Gateway.
+    const reported = new Set<string>();
+    for (const l of linksFrom(d, users.id, 'traffic')) {
+      const t = getResource(d, l.to);
+      const vpc = t ? vpcOfFrame(d, t.frameId) : undefined;
+      if (vpc && !igwOf(d, vpc.id) && !reported.has(vpc.id)) {
+        reported.add(vpc.id);
+        out.push(finding('placement.igw_required', 'error', [vpc.id, l.id]));
+      }
+    }
     for (const l of linksFrom(d, users.id, 'traffic')) {
       const t = getResource(d, l.to);
       if (t?.type === 'ec2' && t.frameId && subnetTier(d, t.frameId) !== 'public') {

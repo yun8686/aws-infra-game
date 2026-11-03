@@ -23,14 +23,15 @@ Frames are the boxes of an AWS architecture diagram. Each has one parent; the Re
 | Resource | Placed in | Settings |
 |---|---|---|
 | Users | outside the cloud | System-managed entry for scenario traffic, exactly one. |
+| Internet Gateway | VPC | — At most one per VPC. Traffic from Users into a VPC needs it (validation error otherwise). Drawn on the VPC's top border. Route tables are not modeled. |
 | EC2 instance | Subnet | `size` (`small`…`xlarge`), `apps`, `securityGroupIds`. One instance (ADR 0015); more servers are more EC2 resources ("同じ設定でもう1台"). Port 80. |
 | Application Load Balancer | VPC | `scheme`, `listener` (http 80 / https 443), `healthCheck` (`intervalSec`, `unhealthyThreshold`), `subnetIds` (≥ 2 AZs; public if internet-facing), `securityGroupIds`. |
 | Auto Scaling group | VPC | `size`, `min` ≤ `desired` ≤ `max` (1–50), `targetCpuPct`, `warmupSec`, `apps`, `subnetIds`, `securityGroupIds`. Holds its own instances; replaces failed ones. Port 80. |
-| RDS database | VPC | `instanceClass`, `storageTier`, `multiAz`, `subnetIds` (DB subnet group; Multi-AZ needs 2 AZs), `securityGroupIds`. Port 5432. |
+| RDS database | Subnet (the primary) | `instanceClass`, `storageTier`, `multiAz`, `standbySubnetId` (required with Multi-AZ, another AZ of the same VPC), `securityGroupIds`. Port 5432. The DB subnet group is not modeled separately: the primary's subnet and the standby's subnet are what is drawn. |
 | Security group | VPC | `inbound[]`: `port` (1–65535 or `all`) and source (`anywhere`, `vpc`, or another security group). Outbound always allowed; allow-only rules. A resource with no security group receives nothing. |
 | CloudWatch | Region | `alarms[]`. At most one. Observability; not needed for scaling. |
 
-Load balancers, Auto Scaling groups and databases sit in the VPC frame and list the subnets they span, as they are drawn in AWS diagrams. Every referenced subnet and security group must be in the resource's VPC.
+Load balancers and Auto Scaling groups sit in the VPC frame and list the subnets they span, as they are drawn in AWS diagrams. Every referenced subnet and security group must be in the resource's VPC.
 
 ## Links
 
@@ -50,7 +51,7 @@ There are no placement or attachment links; placement is the frame (or `subnetId
 
 Findings are structured (`code`, `severity`, `targetIds`, `params`, optional `riskLevel`). Text: `src/i18n/findings.ts`.
 
-- **error**: the simulation cannot run (structure problems, missing subnets, ALB without two AZs, internet-facing ALB in a private subnet, Multi-AZ without two AZs, Users → private EC2 or internal ALB, no request path).
+- **error**: the simulation cannot run (structure problems, missing subnets, ALB without two AZs, internet-facing ALB in a private subnet, Multi-AZ without a standby subnet in another AZ, Users → a VPC without an Internet Gateway, Users → private EC2 or internal ALB, no request path).
 - **warning**: runs but suffers (no security group, traffic blocked by a security group, ALB without targets, unreachable server, unused database, server without a database, app not served).
 - **info**: every serving server in one AZ.
 
@@ -61,5 +62,5 @@ Security findings carry a `riskLevel`:
 | DB port (5432) open to `anywhere` | critical |
 | All ports open to `anywhere` | critical |
 | Admin port (22 / 3389) open to `anywhere` | major |
-| RDS using a public subnet | major |
+| RDS primary or standby in a public subnet | major |
 | EC2 receives traffic directly from Users (no load balancer) | minor |

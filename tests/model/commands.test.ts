@@ -56,9 +56,9 @@ describe('frames', () => {
     expect(addableFrameKinds('region')).toEqual(['vpc']);
     expect(addableResourceTypes('region')).toEqual(['cloudwatch']);
     expect(addableFrameKinds('vpc')).toEqual(['az']);
-    expect(addableResourceTypes('vpc')).toEqual(['alb', 'asg', 'rds', 'sg']);
+    expect(addableResourceTypes('vpc')).toEqual(['igw', 'alb', 'asg', 'sg']);
     expect(addableFrameKinds('az')).toEqual(['subnet']);
-    expect(addableResourceTypes('subnet')).toEqual(['ec2']);
+    expect(addableResourceTypes('subnet')).toEqual(['ec2', 'rds']);
   });
 
   it('renames an auto-named subnet when its tier changes', () => {
@@ -87,9 +87,10 @@ describe('resources', () => {
   });
 
   it('suggests one subnet per AZ for spanning resources', () => {
-    const { b, alb, db, pubA, pubB, privA, privB } = standardStack();
+    const { b, alb, pubA, pubB, privA, privB } = standardStack();
     expect(getResource(b.d, alb, 'alb')?.config.subnetIds).toEqual([pubA, pubB]);
-    expect(getResource(b.d, db, 'rds')?.config.subnetIds).toEqual([privA, privB]);
+    const asg = b.resource('asg', 'vpc-1');
+    expect(getResource(b.d, asg, 'asg')?.config.subnetIds).toEqual([privA, privB]);
   });
 
   it('rejects invalid configs and references outside the VPC', () => {
@@ -172,17 +173,27 @@ describe('links', () => {
 
 describe('removal', () => {
   it('removing a frame removes everything inside and strips references', () => {
-    const { b, privA, webA, db, alb, pubA } = standardStack();
+    const { b, privA, privB, webA, webB, db, alb, pubA } = standardStack();
+    b.set(db, { multiAz: true, standbySubnetId: privB });
+    const azB = b.d.frames[privB]!.parentId!;
+    const impact = removalImpact(b.d, azB);
+    expect(impact.frames).toEqual(expect.arrayContaining([privB]));
+    expect(impact.resources).toEqual([webB]);
+    const r = must(remove(b.d, azB));
+    expect(r.diagram.frames[privB]).toBeUndefined();
+    expect(r.diagram.resources[webB]).toBeUndefined();
+    // The standby subnet is gone: the database keeps running in AZ a without a standby.
+    expect(getResource(r.diagram, db, 'rds')!.config.standbySubnetId).toBeNull();
+    expect(getResource(r.diagram, alb, 'alb')!.config.subnetIds).toEqual([pubA]);
+    expect(Object.values(r.diagram.links).some((l) => l.from === webB || l.to === webB)).toBe(false);
+    // Removing AZ a removes the database placed in it.
     const azA = b.d.frames[privA]!.parentId!;
-    const impact = removalImpact(b.d, azA);
-    expect(impact.frames).toEqual(expect.arrayContaining([pubA, privA]));
-    expect(impact.resources).toEqual([webA]);
-    const r = must(remove(b.d, azA));
-    expect(r.diagram.frames[privA]).toBeUndefined();
-    expect(r.diagram.resources[webA]).toBeUndefined();
-    expect(getResource(r.diagram, db, 'rds')!.config.subnetIds).toEqual(['subnet-4']);
-    expect(getResource(r.diagram, alb, 'alb')!.config.subnetIds).toEqual(['subnet-3']);
-    expect(Object.values(r.diagram.links).some((l) => l.from === webA || l.to === webA)).toBe(false);
+    expect(removalImpact(b.d, azA).resources).toEqual([db, webA]);
+  });
+
+  it('allows one Internet Gateway per VPC', () => {
+    const { b, vpc } = standardStack();
+    expect(addResource(b.d, 'igw', vpc)).toMatchObject({ ok: false, finding: { code: 'edit.max_reached' } });
   });
 
   it('removing a security group detaches it and drops rules that referenced it', () => {

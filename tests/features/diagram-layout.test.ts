@@ -22,6 +22,7 @@ describe('diagram views', () => {
     const vpc = box(v, 'vpc-1')!;
     expect(vpc.open).toBe(false);
     expect(vpc.preview).toEqual([
+      { type: 'igw', count: 1 },
       { type: 'alb', count: 1 },
       { type: 'ec2', count: 2 },
       { type: 'rds', count: 1 },
@@ -44,12 +45,19 @@ describe('diagram views', () => {
     // EC2 instances are inside their subnet.
     expect(inside(item(v, 'web-1')!, box(v, 'subnet-3')!)).toBe(true);
     expect(inside(item(v, 'web-2')!, box(v, 'subnet-3')!)).toBe(true);
-    // The ALB band spans both public subnets; the database band both private subnets.
+    // The IGW sits on the VPC's top border.
+    const igw = item(v, 'igw-1')!;
+    const vpcBox = v.boxes.find((b) => b.open)!;
+    expect(igw.y).toBeLessThan(vpcBox.y);
+    expect(igw.y + igw.h).toBeGreaterThan(vpcBox.y);
+    // The ALB band spans both public subnets; the database is an icon in private-a.
     const alb = item(v, 'alb-1')!;
     expect(alb.variant).toBe('band');
     expect(alb.x).toBeLessThan(box(v, 'subnet-1')!.x + box(v, 'subnet-1')!.w);
     expect(alb.x + alb.w).toBeGreaterThan(box(v, 'subnet-2')!.x);
     const db = item(v, 'db-1')!;
+    expect(db.variant).toBe('icon');
+    expect(inside(db, box(v, 'subnet-3')!)).toBe(true);
     expect(db.y).toBeGreaterThan(item(v, 'web-1')!.y);
     // Security groups go to the VPC-wide strip.
     expect(item(v, 'sg-1')?.variant).toBe('icon');
@@ -57,9 +65,34 @@ describe('diagram views', () => {
 
   it('VPC view arrows run top to bottom: users → ALB → servers → database', () => {
     const v = layoutView(d, 'vpc-1', W);
-    expect(v.arrows.map((a) => a.kind).sort()).toEqual(['data', 'data', 'traffic', 'traffic', 'traffic']);
+    // users → IGW → ALB → web-1 / web-2 → database
+    expect(v.arrows.map((a) => a.kind).sort()).toEqual([
+      'data',
+      'data',
+      'traffic',
+      'traffic',
+      'traffic',
+      'traffic',
+    ]);
     for (const a of v.arrows) expect(a.y2).toBeGreaterThan(a.y1);
     expect(v.arrows.every((a) => !a.outsideLabel)).toBe(true);
+  });
+
+  it('Multi-AZ: primary and standby icons in their subnets, joined by a sync line', async () => {
+    const { updateConfig } = await import('../../src/model');
+    const r = updateConfig(d, 'db-1', {
+      ...d.resources['db-1']!.config,
+      multiAz: true,
+      standbySubnetId: 'subnet-4',
+    });
+    if (!r.ok) throw new Error('fixture');
+    const v = layoutView(r.diagram, 'vpc-1', W);
+    const copies = v.items.filter((i) => i.resourceId === 'db-1');
+    expect(copies.map((i) => i.role)).toEqual(['primary', 'standby']);
+    expect(inside(copies[1]!, box(v, 'subnet-4')!)).toBe(true);
+    expect(v.arrows.filter((a) => a.kind === 'sync')).toHaveLength(1);
+    // Data arrows go to the primary only.
+    for (const a of v.arrows.filter((x) => x.kind === 'data')) expect(a.x2).toBeLessThan(copies[1]!.x);
   });
 
   it('subnet view: neighbours outside the subnet are named at the frame edge', () => {
@@ -91,5 +124,40 @@ describe('diagram views', () => {
       const v = layoutView(d, f, W);
       for (const r of [...v.boxes, ...v.items]) expect(r.x + r.w).toBeLessThanOrEqual(W + 0.01);
     }
+  });
+});
+
+describe('crowded diagrams (3 AZs, 12 servers, Auto Scaling, Multi-AZ)', () => {
+  it('icons never overlap and stay inside the width in every view', async () => {
+    const { bigDiagram } = await import('../fixtures/big');
+    const big = bigDiagram();
+    const overlap = (a: Rect, b: Rect) =>
+      a.x < b.x + b.w - 0.01 && b.x < a.x + a.w - 0.01 && a.y < b.y + b.h - 0.01 && b.y < a.y + a.h - 0.01;
+    for (const f of Object.keys(big.frames)) {
+      const v = layoutView(big, f, W);
+      for (const r of [...v.boxes, ...v.items]) expect(r.x + r.w).toBeLessThanOrEqual(W + 0.01);
+      const icons = v.items.filter((i) => i.variant === 'icon');
+      for (let i = 0; i < icons.length; i++)
+        for (let j = i + 1; j < icons.length; j++)
+          expect(overlap(icons[i]!, icons[j]!), `${f}: ${icons[i]!.key} / ${icons[j]!.key}`).toBe(false);
+    }
+  });
+
+  it('servers that do not fit one row are one "EC2 ×n" icon that opens the subnet', async () => {
+    const { bigDiagram } = await import('../fixtures/big');
+    const v = layoutView(bigDiagram(), 'vpc-1', W);
+    const clusters = v.items.filter((i) => i.memberIds);
+    expect(clusters.map((c) => c.label)).toEqual(['EC2 ×4', 'EC2 ×4', 'EC2 ×4']);
+    expect(clusters[0]!.openFrameId).toBe('subnet-2');
+    // Arrows to the four servers of a subnet merge into one.
+    expect(v.arrows.filter((a) => a.kind === 'traffic').length).toBeLessThanOrEqual(6);
+  });
+
+  it('links to resources outside the open frame are merged per inside end', async () => {
+    const { bigDiagram } = await import('../fixtures/big');
+    const v = layoutView(bigDiagram(), 'az-1', W);
+    const labels = v.arrows.flatMap((a) => (a.outsideLabel ? [a.outsideLabel] : []));
+    expect(labels).toContain('web-5 ほか7件');
+    expect(labels.length).toBeLessThanOrEqual(3);
   });
 });

@@ -7,9 +7,11 @@ test('draw a working architecture from an empty Region, frame by frame', async (
   const sheet = page.getByRole('dialog');
   await expect(page.locator('.breadcrumb [aria-current]')).toHaveText('リージョン');
 
-  // Region › VPC
+  // Region › VPC, with an Internet Gateway so users can reach it
   await add(page, /^VPC/);
   await openFrame(page, 'vpc-1');
+  await add(page, /^インターネットゲートウェイ/);
+  await sheet.getByRole('button', { name: '閉じる' }).tap();
 
   // VPC › two AZs, each with a public and a private subnet
   await add(page, /^アベイラビリティーゾーン/);
@@ -32,25 +34,28 @@ test('draw a working architecture from an empty Region, frame by frame', async (
   await sheet.getByLabel('ルール2の送信元').selectOption('vpc');
   await sheet.getByRole('button', { name: '閉じる' }).tap();
 
-  // Load balancer and database live in the VPC and span subnets (suggested automatically).
+  // The load balancer lives in the VPC and spans subnets (suggested automatically).
   await add(page, /^Application Load Balancer/);
   await expect(sheet.getByRole('button', { name: /^public-a/ })).toHaveAttribute('aria-pressed', 'true');
   await expect(sheet.getByRole('button', { name: /^public-b/ })).toHaveAttribute('aria-pressed', 'true');
   await sheet.getByRole('button', { name: /^sg-1/ }).tap();
   await sheet.getByRole('button', { name: '閉じる' }).tap();
+
+  // A database and a server in a private subnet, the server connected to the database.
+  await openFrame(page, 'AZ a');
+  await openFrame(page, 'private-a');
   await add(page, /^RDS/);
   await expect(sheet.getByRole('button', { name: /^private-a/ })).toHaveAttribute('aria-pressed', 'true');
   await sheet.getByRole('button', { name: /^sg-1/ }).tap();
   await sheet.getByRole('button', { name: '閉じる' }).tap();
-
-  // A server in a private subnet, connected to the database.
-  await openFrame(page, 'AZ a');
-  await openFrame(page, 'private-a');
   await add(page, /^EC2/);
   await sheet.getByRole('button', { name: /^sg-1/ }).tap();
   await sheet.getByRole('button', { name: '→ データベースにつなぐ' }).tap();
-  await sheet.getByRole('button', { name: /^db-1/ }).tap();
+  // Connect mode: the diagram stays visible; the target is tapped on the diagram.
+  await expect(sheet).toHaveCount(0);
+  await tapItem(page, 'db-1');
   await expect(page.locator('.toast')).toContainText('web-1 → db-1 をつなぎました');
+  await page.getByRole('button', { name: '完了' }).tap();
   await sheet.getByRole('button', { name: '閉じる' }).tap();
 
   // Users → ALB → server, connected from the VPC view where all three are visible.
@@ -58,10 +63,16 @@ test('draw a working architecture from an empty Region, frame by frame', async (
   await tapResource(page, 'users');
   await sheet.getByRole('button', { name: '→ リクエストの送り先をつなぐ' }).tap();
   await tapItem(page, 'alb-1');
+  await page.getByRole('button', { name: '完了' }).tap();
   await sheet.getByRole('button', { name: '閉じる' }).tap();
   await tapResource(page, 'alb-1');
   await sheet.getByRole('button', { name: '→ リクエストの送り先をつなぐ' }).tap();
-  await sheet.getByRole('button', { name: /^web-1/ }).tap();
+  // Candidates are also listed in the bar.
+  await page
+    .locator('.connect-banner')
+    .getByRole('button', { name: /^web-1/ })
+    .tap();
+  await page.getByRole('button', { name: '完了' }).tap();
   await sheet.getByRole('button', { name: '閉じる' }).tap();
 
   // No errors: the same engine runs it.
@@ -81,12 +92,14 @@ test('mission 1 solved through the diagram: Auto Scaling replaces the fixed serv
   for (let i = 0; i < 2; i++) await sheet.getByRole('button', { name: 'ウォームアップを減らす' }).tap();
   await sheet.getByRole('button', { name: /^web-sg/ }).tap();
   await sheet.getByRole('button', { name: '→ データベースにつなぐ' }).tap();
-  await sheet.getByRole('button', { name: /^shop-db/ }).tap();
+  await tapItem(page, 'shop-db');
+  await page.getByRole('button', { name: '完了' }).tap();
   await sheet.getByRole('button', { name: '閉じる' }).tap();
 
   await tapResource(page, 'shop-alb');
   await sheet.getByRole('button', { name: '→ リクエストの送り先をつなぐ' }).tap();
-  await sheet.getByRole('button', { name: /^asg-1/ }).tap();
+  await tapItem(page, 'asg-1');
+  await page.getByRole('button', { name: '完了' }).tap();
   await sheet.getByRole('button', { name: '閉じる' }).tap();
 
   for (const web of ['web-1', 'web-2']) {
@@ -105,14 +118,40 @@ test('mission 1 solved through the diagram: Auto Scaling replaces the fixed serv
   await expect(page.locator('.result-headline h2')).toHaveText('目標達成');
 });
 
-test('frames can be reconfigured and removed with everything inside, then undone', async ({ page }) => {
+test('frames: settings, locked dependencies, delete with everything inside, undo', async ({ page }) => {
   await startMission(page, 'TV放映によるアクセス急増');
   await page.getByRole('link', { name: /構成/ }).tap();
   const sheet = page.getByRole('dialog');
+  // AZ a holds the customer's database, so it cannot be removed.
+  await openFrame(page, 'AZ a');
+  await page.getByRole('button', { name: /AZ aの設定/ }).tap();
+  await sheet.getByRole('button', { name: 'この枠を削除' }).tap();
+  await sheet.getByRole('button', { name: '削除する' }).tap();
+  await expect(page.locator('.toast')).toContainText('顧客の要望で削除できません');
+  // AZ b can go, with its subnets; undo brings it back.
+  await crumb(page, 'shop-vpc');
   await openFrame(page, 'AZ b');
   await page.getByRole('button', { name: /AZ bの設定/ }).tap();
   await sheet.getByRole('button', { name: 'この枠を削除' }).tap();
-  // The locked database uses a subnet in this AZ, so the customer's constraint blocks it.
+  await expect(sheet).toContainText('public-b');
   await sheet.getByRole('button', { name: '削除する' }).tap();
-  await expect(page.locator('.toast')).toContainText('顧客の要望で削除できません');
+  await expect(page.locator('.breadcrumb [aria-current]')).toHaveText('shop-vpc');
+  await expect(
+    page.locator('.diagram-canvas').getByRole('button', { name: 'AZ b', exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole('button', { name: '元に戻す' }).first().tap();
+  await expect(
+    page.locator('.diagram-canvas').getByRole('button', { name: 'AZ b', exact: true }),
+  ).toBeVisible();
+});
+
+test('security groups show where they are attached', async ({ page }) => {
+  await startMission(page, 'TV放映によるアクセス急増');
+  await page.getByRole('link', { name: /構成/ }).tap();
+  await expect(
+    page.locator('.diagram-canvas').getByRole('button', { name: 'web-sg 2件に適用' }),
+  ).toBeVisible();
+  await tapResource(page, 'web-sg');
+  await expect(page.getByRole('dialog')).toContainText('このセキュリティグループを付けているリソース');
+  await expect(page.locator('.item.is-related')).toHaveCount(2);
 });

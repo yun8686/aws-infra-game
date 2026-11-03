@@ -28,8 +28,14 @@ const spreadAcrossAzs = (g: Diagram) =>
 describe('redundancy changes the impact of failures (MVP acceptance)', () => {
   it('an AZ outage takes down a single-AZ web tier but not a two-AZ one', () => {
     const scenario = SCENARIOS['az-a-outage'];
-    const single = run(setConfig(template(), 'db-1', { multiAz: true }), scenario);
-    const multi = run(setConfig(spreadAcrossAzs(template()), 'db-1', { multiAz: true }), scenario);
+    const single = run(
+      setConfig(template(), 'db-1', { multiAz: true, standbySubnetId: 'subnet-4' }),
+      scenario,
+    );
+    const multi = run(
+      setConfig(spreadAcrossAzs(template()), 'db-1', { multiAz: true, standbySubnetId: 'subnet-4' }),
+      scenario,
+    );
     expect(single.bottlenecks[0]).toMatchObject({ cause: 'no_healthy_targets', nodeIds: ['alb-1'] });
     expect(single.summary.errorRate).toBeGreaterThan(0.3);
     expect(multi.summary.errorRate).toBeLessThan(0.05);
@@ -38,7 +44,10 @@ describe('redundancy changes the impact of failures (MVP acceptance)', () => {
   it('Multi-AZ RDS fails over in minutes while single-AZ RDS stays down', () => {
     const scenario = steady([{ kind: 'db_failure', atMin: 10 }]);
     const single = run(template(), scenario);
-    const multi = run(setConfig(template(), 'db-1', { multiAz: true }), scenario);
+    const multi = run(
+      setConfig(template(), 'db-1', { multiAz: true, standbySubnetId: 'subnet-4' }),
+      scenario,
+    );
     const singleDown = single.bottlenecks.find((b) => b.cause === 'db_unavailable');
     const multiDown = multi.bottlenecks.find((b) => b.cause === 'db_unavailable');
     expect(singleDown).toMatchObject({ startMinute: 10, endMinute: 24 });
@@ -94,6 +103,7 @@ describe('health checks', () => {
     const vpc = b.frame('vpc', REGION_ID);
     const az = b.frame('az', vpc);
     const pub = b.frame('subnet', az, { tier: 'public' });
+    b.resource('igw', vpc);
     const sg = b.resource('sg', vpc, { inbound: [{ port: 80, source: { kind: 'anywhere' } }] });
     const servers = [1, 2].map(() => {
       const id = b.resource('ec2', pub, { securityGroupIds: [sg] });

@@ -3,6 +3,7 @@ import type { FrameKind, ResourceType } from '../model';
 /** Service names as shown on the diagram and in menus. */
 export const RESOURCE_LABEL: Readonly<Record<ResourceType, string>> = {
   users: 'ユーザー',
+  igw: 'IGW',
   alb: 'ALB',
   ec2: 'EC2',
   asg: 'Auto Scaling',
@@ -13,6 +14,7 @@ export const RESOURCE_LABEL: Readonly<Record<ResourceType, string>> = {
 
 export const RESOURCE_LONG_LABEL: Readonly<Record<ResourceType, string>> = {
   users: 'ユーザー（インターネット）',
+  igw: 'インターネットゲートウェイ',
   alb: 'Application Load Balancer',
   ec2: 'EC2 インスタンス',
   asg: 'Auto Scaling グループ',

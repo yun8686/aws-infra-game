@@ -7,7 +7,7 @@ import './diagram.css';
 
 export const LAYOUT_WIDTH = 360;
 
-export type ItemMark = 'candidate' | 'dimmed';
+export type ItemMark = 'candidate' | 'dimmed' | 'related';
 
 export interface DiagramCanvasProps {
   readonly diagram: Diagram;
@@ -184,11 +184,16 @@ function Item({
   const ix = item.x + (item.w - ICON) / 2;
   const iy = item.y + 4;
   const lines = labelLines(item.label);
+  // A Multi-AZ standby shows its role; the primary shows the status badge (monitor) or its role.
+  const sub =
+    item.role === 'standby'
+      ? { text: 'スタンバイ', level: 'role' }
+      : (badge ?? (item.role === 'primary' ? { text: 'プライマリ', level: 'role' } : undefined));
   return (
     <g
       className={classes}
       role="button"
-      aria-label={badge ? `${lines.join('')} ${badge.text}` : lines.join('')}
+      aria-label={sub ? `${lines.join('')} ${sub.text}` : lines.join('')}
       onClick={click}
     >
       <desc>{desc}</desc>
@@ -202,18 +207,18 @@ function Item({
           y={iy + ICON + 14 + i * 13}
           textAnchor="middle"
         >
-          {badge && i === lines.length - 1 ? `${line} ` : line}
+          {sub && i === lines.length - 1 ? `${line} ` : line}
         </text>
       ))}
-      {badge && (
+      {sub && (
         <text
-          className={`item-badge badge-${badge.level}`}
+          className={`item-badge badge-${sub.level}`}
           x={item.x + item.w / 2}
           y={iy + ICON + 14 + lines.length * 13}
           textAnchor="middle"
           aria-hidden="true"
         >
-          {badge.text}
+          {sub.text}
         </text>
       )}
       {issue && <circle className={`issue-dot issue-${issue}`} cx={ix + ICON + 2} cy={iy + 2} r={5} />}
@@ -224,7 +229,8 @@ function Item({
 function Arrow({ a }: { a: ArrowShape }) {
   const labelAtStart = a.outsideEnd === 'from';
   const lx = labelAtStart ? a.x1 : a.x2;
-  const ly = labelAtStart ? a.y1 + 12 : a.y2 - 6;
+  const row = a.labelRow ?? 0;
+  const ly = labelAtStart ? a.y1 + 12 + row * 12 : a.y2 - 6 - row * 12;
   return (
     <g className={`arrow arrow-${a.kind}`} aria-hidden="true">
       <line className="arrow-halo" x1={a.x1} y1={a.y1} x2={a.x2} y2={a.y2} />
@@ -234,10 +240,15 @@ function Arrow({ a }: { a: ArrowShape }) {
         y1={a.y1}
         x2={a.x2}
         y2={a.y2}
-        markerEnd={`url(#arrowhead-${a.kind})`}
+        {...(a.kind === 'sync' ? {} : { markerEnd: `url(#arrowhead-${a.kind})` })}
       />
       {a.outsideLabel && (
-        <text className="arrow-outside" x={lx + 6} y={ly}>
+        <text
+          className="arrow-outside"
+          x={labelAtStart ? lx + 6 : lx - 4}
+          y={ly}
+          textAnchor={labelAtStart ? 'start' : 'end'}
+        >
           {labelAtStart ? `${a.outsideLabel} から` : `${a.outsideLabel} へ`}
         </text>
       )}
@@ -291,11 +302,21 @@ export function DiagramCanvas({
           <Item
             key={i.key}
             item={i}
-            selected={selectedId === i.resourceId}
+            selected={selectedId === i.resourceId || (!!selectedId && !!i.memberIds?.includes(selectedId))}
             issue={issues?.[i.resourceId]}
-            mark={marks?.[i.resourceId]}
+            mark={
+              i.memberIds
+                ? i.memberIds.some((m) => marks?.[m] === 'candidate')
+                  ? 'candidate'
+                  : i.memberIds.some((m) => marks?.[m] === 'related')
+                    ? 'related'
+                    : marks && i.memberIds.every((m) => marks[m] === 'dimmed')
+                      ? 'dimmed'
+                      : undefined
+                : marks?.[i.resourceId]
+            }
             badge={badges?.[i.resourceId]}
-            onSelect={onSelect}
+            onSelect={(id) => (i.openFrameId ? onOpenFrame(i.openFrameId) : onSelect(id))}
           />
         ))}
       </svg>

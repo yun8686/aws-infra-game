@@ -29,14 +29,15 @@ Real AWS: an AZ belongs to the Region and a VPC spans AZs. Architecture diagrams
 | Resource | Placed in (`frameId`) | Spans subnets (`subnetIds`) | Notes |
 |---|---|---|---|
 | Users (Internet) | outside the cloud | — | System-managed, exactly one. Traffic entry. |
+| Internet Gateway | VPC | — | One per VPC; required for traffic from Users into the VPC (addendum 2026-11-03). |
 | EC2 instance | Subnet | — | One instance (ADR 0015). Runs `apps` (ADR 0016). |
 | Application Load Balancer | VPC | ≥ 2 AZs; public if internet-facing | |
 | Auto Scaling group | VPC | ≥ 1 | Instance spec + target tracking. |
-| RDS database | VPC | DB subnet group; Multi-AZ needs 2 AZs | |
+| RDS database | Subnet (primary) | — | Multi-AZ: `standbySubnetId` in another AZ (addendum 2026-11-03). |
 | Security group | VPC | — | Attached by resources (`securityGroupIds`), not drawn as links. |
 | CloudWatch | Region | — | At most one. Alarms / observability. |
 
-Resources that span subnets live in the VPC frame and list their subnets as a setting, matching how they are drawn in AWS diagrams (a load balancer across the public subnets). All `subnetIds` and `securityGroupIds` must be inside the resource's VPC.
+Resources that span subnets (load balancer, Auto Scaling) live in the VPC frame and list their subnets as a setting, matching how they are drawn in AWS diagrams (a load balancer across the public subnets). All `subnetIds` and `securityGroupIds` must be inside the resource's VPC.
 
 Links: `traffic` (Users → ALB / EC2, ALB → EC2 / Auto Scaling) and `data` (EC2 / Auto Scaling → RDS, setting `poolSize`). There are no placement or attachment links.
 

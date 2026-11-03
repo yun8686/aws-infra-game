@@ -89,7 +89,7 @@ After each step: `proposed = ceil(routedRps / (capacityPerInstance × targetCpuP
 
 ### Database availability
 
-The primary runs in the first (sorted) zone of the database's `subnetIds`.
+The primary runs in the zone of the database's own subnet; a Multi-AZ standby in the zone of `standbySubnetId`.
 
 | Event | Multi-AZ | Single-AZ |
 |---|---|---|

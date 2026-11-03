@@ -6,6 +6,7 @@ import {
   linksTo,
   outgoingLinkKinds,
   removalImpact,
+  usersOfSecurityGroup,
   type AppId,
   type Diagram,
   type EditPolicy,
@@ -89,7 +90,8 @@ const RESOURCE_HELP: Partial<Record<ResourceType, string>> = {
   ec2: '1台の仮想サーバー。このサブネットで動きます。',
   alb: 'リクエストを複数のサーバーに振り分けます。使うサブネットを選びます。',
   asg: '負荷に合わせてサーバー台数を自動で増減します。',
-  rds: 'マネージドなデータベース。使うサブネットを選びます。',
+  rds: 'マネージドなデータベース。このサブネットで動きます。Multi-AZ で別のAZにスタンバイを置けます。',
+  igw: 'VPC とインターネットの出入り口。ユーザーからのアクセスに必要です（VPC に1つ）。',
   sg: 'どこからの通信を受け付けるかを決めるファイアウォールです。',
   cloudwatch: 'メトリクスの監視とアラーム。',
 };
@@ -170,7 +172,7 @@ export function AddSheet({
           </li>
         ))}
       </ul>
-      {frame.kind === 'vpc' && <p className="field-help">EC2 はサブネットを開いて追加します。</p>}
+      {frame.kind === 'vpc' && <p className="field-help">EC2 と RDS はサブネットを開いて追加します。</p>}
     </BottomSheet>
   );
 }
@@ -280,6 +282,25 @@ export function ResourceSheet({
           ))}
         </div>
       )}
+      {r.type === 'sg' && (
+        <>
+          <h3 className="section-title">このセキュリティグループを付けているリソース</h3>
+          {usersOfSecurityGroup(d, r.id).length === 0 ? (
+            <p className="muted">
+              まだどこにも付いていません。各リソースの設定の「セキュリティグループ」で選びます。
+            </p>
+          ) : (
+            usersOfSecurityGroup(d, r.id).map((u) => (
+              <div className="link-row" key={u.id}>
+                <button type="button" className="text-button grow" onClick={() => onSelect(u.id)}>
+                  {u.name}
+                  <small>{RESOURCE_LABEL[u.type]}</small>
+                </button>
+              </div>
+            ))
+          )}
+        </>
+      )}
       {(['traffic', 'data'] as const).map((k) => {
         const out = outgoing.filter((l) => l.kind === k);
         const inc = incoming.filter((l) => l.kind === k);
@@ -380,7 +401,8 @@ export function FrameSheet({
 
 // ---- Connect ----------------------------------------------------------------------------------------
 
-export function ConnectSheet({
+/** Connect mode lives in the sticky bar, so the whole diagram stays visible for choosing a target. */
+export function ConnectBanner({
   from,
   kind,
   candidates,
@@ -394,16 +416,20 @@ export function ConnectSheet({
   onDone: () => void;
 }) {
   return (
-    <BottomSheet
-      initialSize="compact"
-      title={`${from.name} から${kind === 'traffic' ? 'リクエストを送る先' : 'つなぐデータベース'}`}
-      subtitle="図の青い枠のもの、または下の一覧から選びます"
-      onClose={onDone}
-    >
+    <section className="connect-banner" aria-label="つなぎ先を選ぶ">
+      <div className="connect-banner-head">
+        <p>
+          <strong>{from.name}</strong> から{kind === 'traffic' ? 'リクエストを送る先' : 'つなぐデータベース'}
+          をタップ
+        </p>
+        <button type="button" className="tool-button primary" onClick={onDone}>
+          完了
+        </button>
+      </div>
       {candidates.length === 0 ? (
         <p className="muted">つなげる相手がありません。先に追加してください。</p>
       ) : (
-        <div className="choice-list">
+        <div className="connect-candidates">
           {candidates.map((c) => (
             <button key={c.id} type="button" className="choice" onClick={() => onPick(c.id)}>
               {c.name}
@@ -412,7 +438,7 @@ export function ConnectSheet({
           ))}
         </div>
       )}
-    </BottomSheet>
+    </section>
   );
 }
 

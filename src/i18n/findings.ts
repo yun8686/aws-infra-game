@@ -67,9 +67,20 @@ export const FINDING_TEXT_JA: { readonly [K in FindingCode]: FindingText } = {
     remediation: 'パブリックサブネットだけを選んでください。',
   },
   'placement.rds_multi_az_requires_two_azs': {
-    message: 'Multi-AZ には2つのAZのサブネットが必要です',
-    explanation: 'スタンバイを別のAZに置くため、2つのAZのサブネットが必要です。',
-    remediation: '別のAZのサブネットを追加するか、Multi-AZ をオフにしてください。',
+    message: 'スタンバイはプライマリと別のAZに置く必要があります',
+    explanation: 'AZ 障害に備えるため、スタンバイはプライマリと別のAZのサブネットに置きます。',
+    remediation: '「スタンバイを置くサブネット」で別のAZのサブネットを選んでください。',
+  },
+  'placement.rds_standby_required': {
+    message: 'Multi-AZ のスタンバイを置くサブネットが選ばれていません',
+    explanation: 'Multi-AZ では、別のAZのサブネットにスタンバイ（待機用のデータベース）を置きます。',
+    remediation: '設定の「スタンバイを置くサブネット」で、別のAZのサブネットを選んでください。',
+  },
+  'placement.igw_required': {
+    message: 'この VPC にインターネットゲートウェイがありません',
+    explanation:
+      'インターネットからの通信は、VPC に付けたインターネットゲートウェイ（IGW）を通って入ります。IGW がないと、ユーザーのアクセスは VPC に届きません。',
+    remediation: 'VPC を開いて「＋ 追加」からインターネットゲートウェイを追加してください。',
   },
   'placement.internet_target_requires_public_subnet': {
     message: 'ユーザーから直接受けるサーバーはパブリックサブネットが必要です',
@@ -151,7 +162,7 @@ export const FINDING_TEXT_JA: { readonly [K in FindingCode]: FindingText } = {
   'security.db_in_public_subnet': {
     message: 'データベースがパブリックサブネットにあります',
     explanation: 'データベースは外部から到達できない場所に置くのが基本です。',
-    remediation: 'プライベートサブネットだけを選んでください。',
+    remediation: 'プライベートサブネットに置いてください（設定の「置くサブネット」）。',
   },
   'security.compute_directly_exposed': {
     message: 'サーバーがインターネットに直接公開されています',
@@ -177,7 +188,7 @@ export const FINDING_TEXT_JA: { readonly [K in FindingCode]: FindingText } = {
   },
   'edit.wrong_frame': {
     message: 'この枠の中には置けません',
-    explanation: '置ける場所はサービスごとに決まっています（例：EC2 はサブネット、ALB は VPC）。',
+    explanation: '置ける場所はサービスごとに決まっています（例：EC2・RDS はサブネット、ALB・IGW は VPC）。',
     remediation: '置きたい枠を開いてから追加してください。',
   },
   'edit.invalid_config': {

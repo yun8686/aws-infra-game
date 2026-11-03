@@ -43,12 +43,9 @@ export const add = async (page: Page, item: RegExp): Promise<void> => {
   await page.getByRole('dialog').getByRole('button', { name: item }).tap();
 };
 
-/**
- * Tap an icon in the diagram. Dispatches the click on the element itself, so the sticky toolbar
- * or a toast covering it after auto-scroll does not matter.
- */
+/** Tap an icon in the diagram with a real touch at its icon (not a synthetic click). */
 export const tapItem = async (page: Page, name: string): Promise<void> => {
   const target = item(page, name);
   await expect(target).toBeVisible();
-  await target.dispatchEvent('click');
+  await target.tap({ position: { x: 38, y: 24 } });
 };

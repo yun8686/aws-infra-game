@@ -33,7 +33,8 @@ export const FRAME_DEFINITIONS: { readonly [K in FrameKind]: FrameDefinition<K> 
   },
 };
 
-export type ResourceRole = 'entry' | 'loadBalancer' | 'compute' | 'database' | 'security' | 'monitoring';
+export type ResourceRole =
+  'entry' | 'gateway' | 'loadBalancer' | 'compute' | 'database' | 'security' | 'monitoring';
 
 export interface ResourceDefinition<T extends ResourceType> {
   readonly type: T;
@@ -43,6 +44,8 @@ export interface ResourceDefinition<T extends ResourceType> {
   readonly frameKind: FrameKind | null;
   readonly systemManaged: boolean;
   readonly maxPerDiagram?: number;
+  /** At most this many in one frame (an Internet Gateway per VPC). */
+  readonly maxPerFrame?: number;
   /** Lives in the VPC and lists the subnets it uses (`config.subnetIds`). */
   readonly spansSubnets: boolean;
   /** Accepts security groups (`config.securityGroupIds`). */
@@ -59,6 +62,17 @@ export const RESOURCE_DEFINITIONS: { readonly [T in ResourceType]: ResourceDefin
     frameKind: null,
     systemManaged: true,
     maxPerDiagram: 1,
+    spansSubnets: false,
+    securable: false,
+    defaultConfig: {},
+  },
+  igw: {
+    type: 'igw',
+    role: 'gateway',
+    idPrefix: 'igw',
+    frameKind: 'vpc',
+    systemManaged: false,
+    maxPerFrame: 1,
     spansSubnets: false,
     securable: false,
     defaultConfig: {},
@@ -116,15 +130,15 @@ export const RESOURCE_DEFINITIONS: { readonly [T in ResourceType]: ResourceDefin
     type: 'rds',
     role: 'database',
     idPrefix: 'db',
-    frameKind: 'vpc',
+    frameKind: 'subnet',
     systemManaged: false,
-    spansSubnets: true,
+    spansSubnets: false,
     securable: true,
     defaultConfig: {
       instanceClass: 'db.small',
       storageTier: 'standard',
       multiAz: false,
-      subnetIds: [],
+      standbySubnetId: null,
       securityGroupIds: [],
     },
     inboundPort: () => PORTS.database,

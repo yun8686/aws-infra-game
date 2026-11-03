@@ -187,6 +187,18 @@ const sizeOptions = INSTANCE_SIZES.map((s) => ({
   detail: `${BALANCE.instance[s].capacityRps} rps・${BALANCE.instance[s].costPerHour} cr/時`,
 }));
 
+/** A subnet of the same tier in another AZ, for a new Multi-AZ standby. */
+const suggestStandby = (d: Diagram, primaryId: string | null): string | null => {
+  if (!primaryId) return null;
+  const primary = framesOfKind(d, 'subnet').find((s) => s.id === primaryId);
+  const zone = zoneOfSubnet(d, primaryId);
+  const vpcId = vpcOfFrame(d, primaryId)?.id;
+  const others = framesOfKind(d, 'subnet').filter(
+    (s) => vpcOfFrame(d, s.id)?.id === vpcId && zoneOfSubnet(d, s.id) !== zone,
+  );
+  return (others.find((s) => s.config.tier === primary?.config.tier) ?? others[0])?.id ?? null;
+};
+
 const zoneLabel = (z: string | undefined) => (z ? `AZ ${z.slice(-1)}` : '');
 
 const subnetOptions = (d: Diagram, vpcId: string | undefined) =>
@@ -559,19 +571,38 @@ export function ResourceConfigForm({
             value={c.storageTier}
             onChange={(storageTier) => set<'rds'>({ storageTier })}
           />
+          <Choices
+            label="置くサブネット（プライマリ）"
+            help="データベース本体が動くサブネットです。通常はプライベートサブネットに置きます。"
+            options={subnetOptions(d, vpcOfFrame(d, r.frameId)?.id)}
+            value={r.frameId ?? ''}
+            onChange={onMove}
+          />
           <Toggle
             label="Multi-AZ（別のAZにスタンバイ）"
-            help="障害時に短時間で切り替わります。費用は2倍です。2つのAZのサブネットが必要です。"
+            help="別のAZにスタンバイを置き、障害時は短時間で切り替わります。費用は2倍です。"
             value={c.multiAz}
-            onChange={(multiAz) => set<'rds'>({ multiAz })}
+            onChange={(multiAz) =>
+              set<'rds'>({
+                multiAz,
+                standbySubnetId: multiAz
+                  ? (c.standbySubnetId ?? suggestStandby(d, r.frameId))
+                  : c.standbySubnetId,
+              })
+            }
           />
-          <SubnetsField
-            d={d}
-            r={r}
-            values={c.subnetIds}
-            help="DB サブネットグループです。通常はプライベートサブネットを選びます。"
-            onChange={(v) => set<'rds'>({ subnetIds: v })}
-          />
+          {c.multiAz && (
+            <Choices
+              label="スタンバイを置くサブネット"
+              help="プライマリと別のAZのサブネットを選びます。"
+              options={subnetOptions(d, vpcOfFrame(d, r.frameId)?.id).map((o) => ({
+                ...o,
+                disabled: zoneOfSubnet(d, o.value) === (r.frameId ? zoneOfSubnet(d, r.frameId) : undefined),
+              }))}
+              value={c.standbySubnetId ?? ''}
+              onChange={(standbySubnetId) => set<'rds'>({ standbySubnetId })}
+            />
+          )}
           <SecurityGroupsField
             d={d}
             r={r}
@@ -605,6 +636,13 @@ export function ResourceConfigForm({
       );
     case 'users':
       return <p className="muted">シナリオのアクセスはここから来ます。</p>;
+    case 'igw':
+      return (
+        <p className="muted">
+          VPC とインターネットの出入り口です。ユーザーからのアクセスはここを通って VPC
+          に入ります（このゲームではルートテーブルは省略しています）。
+        </p>
+      );
   }
 }
 

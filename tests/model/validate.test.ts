@@ -5,11 +5,13 @@ import {
   createBaseDiagram,
   getResource,
   isTrafficAllowed,
+  moveResource,
+  remove,
   validateDiagram,
   type Diagram,
   type FindingCode,
 } from '../../src/model';
-import { standardStack } from './builders';
+import { must, standardStack } from './builders';
 
 const codes = (d: Diagram, ctx = {}) => validateDiagram(d, ctx).map((f) => f.code);
 const errors = (d: Diagram) =>
@@ -40,8 +42,22 @@ describe('validateDiagram', () => {
 
   it('checks Multi-AZ needs two AZs', () => {
     const { b, db, privA } = standardStack();
-    b.set(db, { multiAz: true, subnetIds: [privA] });
+    b.set(db, { multiAz: true });
+    expect(errors(b.d)).toEqual(['placement.rds_standby_required']);
+    b.set(db, { standbySubnetId: privA });
     expect(errors(b.d)).toEqual(['placement.rds_multi_az_requires_two_azs']);
+    b.set(db, { standbySubnetId: 'subnet-4' });
+    expect(errors(b.d)).toEqual([]);
+  });
+
+  it('needs an Internet Gateway for traffic from users into the VPC', () => {
+    const { b, vpc } = standardStack();
+    const without = must(remove(b.d, 'igw-1')).diagram;
+    expect(
+      validateDiagram(without)
+        .filter((f) => f.severity === 'error')
+        .map((f) => [f.code, f.targetIds[0]]),
+    ).toEqual([['placement.igw_required', vpc]]);
   });
 
   it('flags a private server exposed directly to users', () => {
@@ -65,7 +81,7 @@ describe('validateDiagram', () => {
   it('reports dependency warnings', () => {
     const { b, webA, db, privA } = standardStack();
     const lonely = b.resource('ec2', privA);
-    const asgDb = b.resource('rds', 'vpc-1', { securityGroupIds: [] });
+    const asgDb = b.resource('rds', privA, { securityGroupIds: [] });
     const all = codes(b.d, { requiredApps: ['shop', 'orders'] }) as FindingCode[];
     expect(all).toEqual(
       expect.arrayContaining([
@@ -88,14 +104,14 @@ describe('validateDiagram', () => {
   });
 
   it('reports security risks', () => {
-    const { b, sgDb, db, pubA, pubB } = standardStack();
+    const { b, sgDb, db, pubA } = standardStack();
     b.set(sgDb, {
       inbound: [
         { port: 5432, source: { kind: 'anywhere' } },
         { port: 22, source: { kind: 'anywhere' } },
       ],
     });
-    b.set(db, { subnetIds: [pubA, pubB] });
+    b.d = must(moveResource(b.d, db, pubA)).diagram;
     const sec = validateDiagram(b.d).filter((f) => f.code.startsWith('security.'));
     expect(sec.map((f) => [f.code, f.riskLevel])).toEqual([
       ['security.db_port_open_to_internet', 'critical'],

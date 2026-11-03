@@ -6,6 +6,8 @@ import {
   resourcesOfType,
   usersOf,
   zonesOf,
+  subnetIdsOf,
+  zoneOfSubnet,
   type AppId,
   type Diagram,
   type Zone as AvailabilityZone,
@@ -46,7 +48,7 @@ export interface DbModel {
   readonly capacityQps: number;
   readonly maxConnections: number;
   readonly multiAz: boolean;
-  /** Sorted zones of its subnets; the first is the initial primary. */
+  /** Zone of the primary first, then the standby's (Multi-AZ). */
   readonly azs: readonly AvailabilityZone[];
 }
 
@@ -140,7 +142,10 @@ export const compileDiagram = (d: Diagram): ExecutionModel => {
       capacityQps: cls.capacityQps * mult,
       maxConnections: cls.maxConnections,
       multiAz: db.config.multiAz,
-      azs: zonesOf(d, db),
+      // Primary first (its own subnet), then the Multi-AZ standby.
+      azs: [...new Set(subnetIdsOf(d, db).map((s) => zoneOfSubnet(d, s)))].filter(
+        (z): z is AvailabilityZone => z !== undefined,
+      ),
     });
   }
 

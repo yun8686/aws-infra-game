@@ -1,13 +1,60 @@
-.editor-toolbar {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  margin-bottom: 8px;
+.editor-bar {
   position: sticky;
   top: 76px;
   z-index: 5;
   background: var(--bg);
+  margin: 0 -16px 4px;
+  padding: 4px 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.editor-toolbar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.editor-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 40px;
+}
+.editor-crumbs .breadcrumb {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+}
+.editor-crumbs .breadcrumb ol {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+.editor-crumbs .breadcrumb button {
+  min-height: 40px;
+}
+.frame-settings {
+  flex: none;
+  font-size: 18px;
+}
+.connect-banner {
   padding: 4px 0;
+}
+.connect-banner-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.connect-banner-head p {
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+}
+.connect-candidates {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 6px 0 2px;
+}
+.connect-candidates .choice {
+  flex: none;
 }
 .toolbar-spacer {
   flex: 1;
@@ -281,12 +328,6 @@ fieldset.rules {
 
 .tab-editor {
   padding-bottom: 50dvh;
-}
-.editor-breadcrumb {
-  position: sticky;
-  top: 128px;
-  z-index: 4;
-  background: var(--bg);
 }
 
 /* Tap-to-toggle choices (subnets, security groups, apps, sizes). */

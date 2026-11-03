@@ -150,3 +150,8 @@ The owner asked to rebuild the experience so the player draws a standard AWS arc
 - **Icons**: official AWS Architecture Icons, used under AWS's terms for architecture diagrams (the owner confirmed). The UI and docs keep the educational-abstraction disclaimer.
 - **Internals**: rewritten in `src/model`, `src/sim`, `src/game`. The simulation formulas, balance and scenarios carry over (engine 5 = engine 4 behaviour on the new model).
 - **Saves**: previous saves are not migrated.
+
+Addendum (2026-11-03, owner feedback):
+- **RDS sits in one subnet** (its primary), like EC2. Multi-AZ adds `standbySubnetId` in another AZ; the diagram shows primary and standby icons joined by a sync line. The DB subnet group is not modeled separately ("a database spanning subnets" felt wrong in the diagram).
+- **Internet Gateway** is a resource the player adds to a VPC (one per VPC). Traffic from Users into a VPC requires it; it is drawn on the VPC's top border and users' arrows pass through it. Route tables and NAT remain out of scope.
+- Diagram readability: servers that do not fit one row in the VPC view are drawn as "EC2 ×n" (opens the subnet); stubs to several outside neighbours are merged; security group attachments are highlighted and counted.

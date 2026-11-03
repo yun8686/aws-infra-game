@@ -17,6 +17,7 @@ the project owner reviewed the terms (2026-11-03). Files are unmodified; only re
 | service-rds.svg | Arch_Databases/48/Arch_Amazon-RDS_48.svg |
 | service-cloudwatch.svg | Arch_Management-Tools/48/Arch_Amazon-CloudWatch_48.svg |
 | service-elb.svg | Arch_Networking-Content-Delivery/48/Arch_Elastic-Load-Balancing_48.svg |
+| resource-internet-gateway.svg | Res_Networking-Content-Delivery/Res_Amazon-VPC_Internet-Gateway_48.svg |
 | general-users.svg / -dark | Res_General-Icons/Res_48_Light|Dark/Res_Users_48_*.svg |
 | general-shield.svg / -dark | Res_General-Icons/Res_48_Light|Dark/Res_Shield_48_*.svg (security group stand-in) |
 
