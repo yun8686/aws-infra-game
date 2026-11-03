@@ -17,6 +17,9 @@
 .bottom-sheet.size-half {
   max-height: 55dvh;
 }
+.bottom-sheet.size-compact {
+  max-height: 38dvh;
+}
 .bottom-sheet.size-full {
   height: calc(100dvh - var(--tabbar-h) - env(safe-area-inset-bottom) - 48px);
 }

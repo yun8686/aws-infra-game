@@ -1,4 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
+import { tapResource } from './helpers';
 import { expect, test, type Page } from '@playwright/test';
 
 /** Serious and critical axe violations, summarized for a readable failure message. */
@@ -19,7 +20,7 @@ test('main screens have no serious accessibility violations', async ({ page }) =
   expect(await violations(page)).toEqual([]);
 
   await page.getByRole('link', { name: /構成/ }).click();
-  await page.getByRole('button', { name: /EC2 web-1/ }).click();
+  await tapResource(page, /EC2 web-1/);
   await expect(page.getByRole('dialog')).toBeVisible();
   expect(await violations(page)).toEqual([]);
 

@@ -5,7 +5,7 @@ import { isRunStale } from '../../app/store/projectStore';
 import { MISSIONS, missionAppIds, type MissionId } from '../../data/missions';
 import { appName } from '../../data/i18n/ja/apps';
 import { SCENARIO_EVENT_KINDS, TIMELINE_TEXT_JA } from '../../data/i18n/ja/timeline';
-import { GraphCanvas } from '../infrastructure-editor/components/GraphCanvas';
+import { DiagramNavigator } from '../infrastructure-editor/components/DiagramNavigator';
 import { nodeLabel } from '../infrastructure-editor/components/EditorSheets';
 import { TimeSeriesChart, type Series } from '../../shared/ui/charts/TimeSeriesChart';
 import { credits, ms, percent } from '../../shared/ui/format';
@@ -271,7 +271,7 @@ export function MonitorTab({ projectId }: { readonly projectId: string }) {
       </section>
 
       <section className="card monitor-graph">
-        <GraphCanvas
+        <DiagramNavigator
           graph={graph}
           metrics={badges}
           showApps={multiApp}

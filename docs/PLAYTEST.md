@@ -109,4 +109,6 @@ A scripted novice walkthrough and an exploit search were run before involving pe
 
 | 5 | EC2 で動かすアプリを選択できたほうが良い。1つの案件で2種類のアプリを動かし、同じサーバーにするか分けるかの判断を求められる | ADR 0016: servers choose apps; apps share CPU on a server; per-app routing, metrics and objectives; mission 2 (ショップと受注管理の同居) where naive co-location fails order-management latency, separation passes, generous headroom is a tuned alternative |
 
+| 6 | AZ の中が縦に並ぶと矢印が分かりにくい。ドリルダウンする形式に | ADR 0017 (option chosen: 層ごとにまとめる): layered overview with one arrow per layer pair, servers grouped by app set; open a layer to see its resources per AZ; network view for placement |
+
 Open questions for human players: whether the four-connection Auto Scaling setup is discoverable without hint 3, whether "availability" (share of minutes with ≤ 5% errors) is understood, and whether 180 s default warm-up feels fair.

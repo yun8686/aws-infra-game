@@ -6,7 +6,8 @@ export interface BottomSheetProps {
   readonly subtitle?: ReactNode;
   readonly onClose: () => void;
   readonly children: ReactNode;
-  readonly initialSize?: 'half' | 'full';
+  /** `compact` keeps most of the diagram visible (e.g. while choosing a connection target). */
+  readonly initialSize?: 'compact' | 'half' | 'full';
   readonly footer?: ReactNode;
 }
 
@@ -43,8 +44,8 @@ export function BottomSheet({
         <button
           type="button"
           className="sheet-grip"
-          aria-label={size === 'half' ? 'シートを広げる' : 'シートを縮める'}
-          onClick={() => setSize(size === 'half' ? 'full' : 'half')}
+          aria-label={size === 'full' ? 'シートを縮める' : 'シートを広げる'}
+          onClick={() => setSize(size === 'full' ? 'half' : 'full')}
         />
         <div className="sheet-title-row">
           <div className="sheet-titles">

@@ -238,6 +238,7 @@ export function ConnectSheet(props: {
   return (
     <BottomSheet
       title={props.placement ? '配置先を選択' : '接続先を選択'}
+      initialSize="compact"
       subtitle={`${nodeLabel(props.graph, props.nodeId)} から。図のノードをタップするか、下の一覧から選んでください。`}
       onClose={props.onDone}
       footer={

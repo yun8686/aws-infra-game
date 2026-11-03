@@ -1,3 +1,4 @@
+import { tapResource } from './helpers';
 import { expect, test } from '@playwright/test';
 
 test('mission 2: choose which apps each server runs and read results per app', async ({ page }) => {
@@ -15,21 +16,25 @@ test('mission 2: choose which apps each server runs and read results per app', a
   await page.getByRole('link', { name: /構成/ }).tap();
   const sheet = page.getByRole('dialog');
   // Both servers start with both apps; the diagram says so.
+  await expect(page.getByRole('button', { name: /サーバー（ショップ・受注）/ })).toBeVisible();
+  await page.locator('.overview-box.group-compute').first().tap();
   await expect(page.getByRole('button', { name: /EC2 web-1 small・50 rps ショップ・受注/ })).toBeVisible();
 
   // web-1 runs order management only, web-2 the shop only.
-  await page.getByRole('button', { name: /EC2 web-1/ }).tap();
+  await tapResource(page, /EC2 web-1/);
   await sheet.getByRole('checkbox', { name: 'ショップ画面' }).uncheck();
   await expect(sheet.getByRole('checkbox', { name: '受注管理' })).toBeDisabled(); // the last app cannot be removed
   await sheet.getByRole('button', { name: '閉じる' }).tap();
-  await page.getByRole('button', { name: /EC2 web-2/ }).tap();
+  await tapResource(page, /EC2 web-2/);
   await sheet.getByRole('checkbox', { name: '受注管理' }).uncheck();
   await sheet.getByRole('button', { name: '閉じる' }).tap();
-  await expect(page.getByRole('button', { name: /EC2 web-1 .* 受注$/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /EC2 web-2 .* ショップ$/ })).toBeVisible();
+  // Separated apps become separate server layers in the overview, each with its own arrow.
+  await page.getByRole('navigation', { name: '構成図の階層' }).getByRole('button', { name: '全体' }).tap();
+  await expect(page.getByRole('button', { name: /^サーバー（受注）/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^サーバー（ショップ）/ })).toBeVisible();
 
   // Removing order management everywhere is flagged before running.
-  await page.getByRole('button', { name: /EC2 web-1/ }).tap();
+  await tapResource(page, /EC2 web-1/);
   await sheet.getByRole('checkbox', { name: 'ショップ画面' }).check();
   await sheet.getByRole('checkbox', { name: '受注管理' }).uncheck();
   await sheet.getByRole('button', { name: '閉じる' }).tap();

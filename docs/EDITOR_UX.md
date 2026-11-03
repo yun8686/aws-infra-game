@@ -7,7 +7,7 @@ Every core operation works with taps only (ADR 0002). Dragging is never required
 ## Layout (portrait phone)
 
 - Toolbar: **＋ 追加** (add service), **構成チェック** badge (⛔ errors / ⚠ warnings / ✓ OK), **一覧 / 図** toggle, undo ↶, redo ↷.
-- Canvas: tier × AZ auto-layout (ADR 0005). Zoom: 全体 / ×1.5 / ×2, panning by native scrolling.
+- Canvas: drill-down (ADR 0017). The **overview** shows Internet → load balancer → servers (one box per set of apps) → database with one arrow between layers and a summary in each box; tap a layer to open it (breadcrumb 「全体 › サーバー」 to go back), or tap a single-resource layer to open its settings. Inside a layer the resources are drawn in the tier × AZ layout (ADR 0005) with the neighbouring layers named as 「↑ … から」「↓ … へ」. 「ネットワーク・セキュリティ」 opens the placement map. Zoom: 標準 / ×1.5 / ×2, panning by native scrolling.
   - Servers (EC2, Auto Scaling) are drawn **once per AZ** they are placed in, joined by a dotted line, so nothing appears to straddle subnets. A Multi-AZ database shows its primary and a dashed standby; a single-AZ database is drawn only in its primary AZ. Load balancers are regional managed services: they are drawn inside the VPC but above the AZ/subnet boxes, with dotted placement lines to the public subnets they use (AWS still places a load balancer node in each of those subnets, which is why at least two AZs are required).
   - Bands follow where resources actually are: a server placed in a public subnet is drawn in the public band.
   - Every box carries a one-line summary of its key settings (e.g. `small × 2台`, `small・2〜14台`, `db.large・プライマリ`, `HTTP・インターネット向け`).

@@ -27,6 +27,9 @@ export interface GraphCanvasProps {
   readonly related?: ReadonlySet<NodeId> | undefined;
   /** Multi-app missions: show which apps each server runs. */
   readonly showApps?: boolean | undefined;
+  /** Drill-down: draw only these resources. */
+  readonly include?: ReadonlySet<NodeId> | undefined;
+  readonly hideTraffic?: boolean | undefined;
 }
 
 export interface NodeMetricBadge {
@@ -56,8 +59,13 @@ export function GraphCanvas({
   metrics,
   related,
   showApps = false,
+  include,
+  hideTraffic = false,
 }: GraphCanvasProps) {
-  const layout = useMemo(() => layoutGraph(graph, { extraLine: showApps }), [graph, showApps]);
+  const layout = useMemo(
+    () => layoutGraph(graph, { extraLine: showApps, ...(include ? { include } : {}), hideTraffic }),
+    [graph, showApps, include, hideTraffic],
+  );
 
   const select = (id: NodeId) => onSelect?.(id);
   const stateClass = (id: NodeId) =>

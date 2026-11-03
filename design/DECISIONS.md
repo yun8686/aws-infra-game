@@ -128,3 +128,11 @@ Playtest feedback: choosing which application a server runs creates a real desig
 - Server capacity is counted in CPU units (one shop request = 1). Apps on the same server compete for it, so a surge of one app slows or drops the other (noisy neighbour). Auto Scaling scales on CPU units.
 - Missions may set availability and performance objectives per app (`appObjectives`); the budget and security stay project-wide. A latency miss on a shared server adds the learning topic "負荷の分離".
 - Mission 2 (ショップと受注管理の同居) is added; mission 1 stays single-app as the introduction. The UI shows the app choice only when a mission has more than one app.
+
+## 0017 — Drill-down diagram: layers first, details on demand
+
+Status: Accepted (2026-11-03). Refines ADR 0005.
+
+Playtest feedback: with several servers stacked in one AZ column, request arrows crossed boxes and were hard to follow. The editor and monitor now open on a **layered overview**: Internet → load balancer → servers → database, one box per layer and one arrow between layers. Servers are grouped by the set of applications they run (ADR 0016), so separated apps show as separate boxes with their own arrows. Each box summarises its contents (counts per AZ, Auto Scaling range, database class and redundancy).
+
+Opening a layer shows only its resources in the tier × AZ layout (all AZ columns kept for context, so an empty AZ is visible), with the neighbouring layers named above and below instead of crossing arrows. A "ネットワーク・セキュリティ" box opens the placement map (all resources, subnets and security groups, without traffic arrows). Single-resource layers open their settings directly. Findings, route focus and placement completion drill into the right layer; choosing a subnet shows the placement map.

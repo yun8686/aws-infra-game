@@ -189,3 +189,69 @@
   font-weight: 700;
   fill: var(--accent-compute);
 }
+.overview-title {
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--text);
+}
+.overview-line {
+  font-size: 11px;
+  fill: var(--muted);
+}
+.overview-open {
+  font-size: 22px;
+  fill: var(--muted);
+}
+.group-entry rect {
+  stroke: var(--accent-ext);
+}
+.group-lb rect {
+  stroke: var(--accent-lb);
+}
+.group-compute rect {
+  stroke: var(--accent-compute);
+}
+.group-database rect {
+  stroke: var(--accent-db);
+}
+.group-unplaced rect {
+  stroke: var(--bad);
+  stroke-dasharray: 4 3;
+}
+.group-network rect {
+  stroke: var(--node-stroke);
+  fill: var(--chip-fill);
+}
+.diagram-crumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 13px;
+  margin: 0 0 6px;
+}
+.diagram-crumbs button {
+  min-height: 36px;
+  border: none;
+  background: none;
+  color: var(--accent);
+  padding: 0 4px;
+  font-weight: 600;
+}
+.diagram-crumbs [aria-current='page'] {
+  color: var(--text);
+  font-weight: 700;
+}
+.diagram-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0;
+  font-size: 12px;
+}
+.diagram-context span {
+  background: var(--zone-fill);
+  border-radius: 999px;
+  padding: 2px 10px;
+  color: var(--muted-strong);
+}

@@ -21,7 +21,8 @@ import {
 import type { ConnectionId, NodeId } from '../../domain/graph/types';
 import { validateGraph } from '../../domain/validation/validateGraph';
 import type { Finding } from '../../domain/validation/findings';
-import { GraphCanvas, type Highlight } from './components/GraphCanvas';
+import type { Highlight } from './components/GraphCanvas';
+import { DiagramNavigator } from './components/DiagramNavigator';
 import {
   ChooseTypeSheet,
   ConnectionSheet,
@@ -66,6 +67,11 @@ export function ArchitectureTab({
     redo: useAppStore((s) => s.redo),
   };
   const [mode, setMode] = useState<Mode>(() => (focus ? { kind: 'node', nodeId: focus } : { kind: 'idle' }));
+  // Drill-down: bring a resource's layer into view (route focus, findings, after placement).
+  const [reveal, setReveal] = useState<{ nodeId: NodeId; seq: number } | undefined>(() =>
+    focus ? { nodeId: focus, seq: 1 } : undefined,
+  );
+  const revealNode = (nodeId: NodeId) => setReveal((r) => ({ nodeId, seq: (r?.seq ?? 0) + 1 }));
   const [view, setView] = useState<'diagram' | 'outline'>('diagram');
   const [zoom, setZoom] = useState<(typeof ZOOMS)[number]>(1);
   const [message, setMessage] = useState<string | undefined>();
@@ -139,7 +145,10 @@ export function ArchitectureTab({
     }
     setMessage(undefined);
     showToast('接続しました', true);
-    if (!stayInMode && mode.kind === 'connect') setMode({ kind: 'node', nodeId: mode.nodeId });
+    if (!stayInMode && mode.kind === 'connect') {
+      setMode({ kind: 'node', nodeId: mode.nodeId });
+      revealNode(mode.nodeId);
+    }
   };
 
   const pickCandidate = (c: ConnectCandidate) => {
@@ -192,8 +201,10 @@ export function ArchitectureTab({
 
   const focusFinding = (f: Finding) => {
     const id = f.nodeIds[0];
-    if (id) setMode({ kind: 'node', nodeId: id });
-    else if (f.connectionIds[0]) setMode({ kind: 'connection', connectionId: f.connectionIds[0] });
+    if (id) {
+      setMode({ kind: 'node', nodeId: id });
+      revealNode(id);
+    } else if (f.connectionIds[0]) setMode({ kind: 'connection', connectionId: f.connectionIds[0] });
   };
 
   return (
@@ -246,7 +257,9 @@ export function ArchitectureTab({
       </GuideCard>
       {view === 'diagram' ? (
         <>
-          <GraphCanvas
+          <DiagramNavigator
+            reveal={reveal}
+            preferNetwork={mode.kind === 'connect' && mode.onlyType === 'placed_in'}
             graph={graph}
             selectedId={selectedNodeId}
             selectedConnectionId={mode.kind === 'connection' ? mode.connectionId : undefined}
@@ -264,7 +277,7 @@ export function ArchitectureTab({
           <div className="zoom-controls" role="group" aria-label="表示倍率">
             {ZOOMS.map((z) => (
               <button key={z} type="button" aria-pressed={zoom === z} onClick={() => setZoom(z)}>
-                {z === 1 ? '全体' : `×${z}`}
+                {z === 1 ? '標準' : `×${z}`}
               </button>
             ))}
           </div>
@@ -343,6 +356,7 @@ export function ArchitectureTab({
           onDone={() => {
             setMessage(undefined);
             setMode({ kind: 'node', nodeId: mode.nodeId });
+            revealNode(mode.nodeId);
           }}
         />
       )}

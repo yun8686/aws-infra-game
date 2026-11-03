@@ -1,3 +1,4 @@
+import { tapResource } from './helpers';
 import { expect, test, type Page } from '@playwright/test';
 
 const openArchitecture = async (page: Page, missionTitle = 'TV放映によるアクセス急増') => {
@@ -9,11 +10,16 @@ const openArchitecture = async (page: Page, missionTitle = 'TV放映によるア
   await page.getByRole('link', { name: /構成/ }).tap();
 };
 const sheet = (page: Page) => page.getByRole('dialog');
+/** Drill-down: open the server layer from the overview. */
+const openServers = async (page: Page) => {
+  await page.getByRole('navigation', { name: '構成図の階層' }).getByRole('button', { name: '全体' }).tap();
+  await page.locator('.overview-box.group-compute').first().tap();
+};
 
 test('change a setting, see the cost estimate move, and undo it', async ({ page }) => {
   await openArchitecture(page);
   await expect(page.locator('.project-header')).toContainText('月額 5,110 cr');
-  await page.getByRole('button', { name: /EC2 web-1/ }).tap();
+  await tapResource(page, /EC2 web-1/);
   await sheet(page).getByLabel('インスタンスサイズ').selectOption('medium');
   await expect(page.getByRole('button', { name: /EC2 web-1 medium・100 rps/ })).toBeVisible();
   await expect(page.locator('.project-header')).toContainText('月額 5,840 cr');
@@ -23,7 +29,7 @@ test('change a setting, see the cost estimate move, and undo it', async ({ page 
 
 test('launch another EC2 instance with the same settings in another AZ', async ({ page }) => {
   await openArchitecture(page);
-  await page.getByRole('button', { name: /EC2 web-1/ }).tap();
+  await tapResource(page, /EC2 web-1/);
   // A single instance has no count to change and belongs to one subnet.
   await expect(sheet(page).getByLabel('台数', { exact: true })).toHaveCount(0);
   await sheet(page).getByRole('button', { name: '＋ 同じ設定でもう1台' }).tap();
@@ -50,7 +56,11 @@ test('invalid connections are explained, locked resources cannot be deleted', as
   await sheet(page).getByRole('button', { name: '接続を追加' }).tap();
   await expect(sheet(page)).toContainText('接続先を選択');
   // Tap a node that cannot be connected to a database.
-  await page.getByRole('button', { name: 'NET Internet' }).tap();
+  // Bring the Internet box above the connect sheet, then tap it on the diagram.
+  await page.getByRole('button', { name: /^Internet/ }).evaluate((el) => {
+    window.scrollBy(0, el.getBoundingClientRect().top - 200);
+  });
+  await page.getByRole('button', { name: /^Internet/ }).tap();
   await expect(sheet(page).getByRole('alert')).toContainText('この組み合わせは接続できません');
 });
 
@@ -86,7 +96,7 @@ test('solve the TV spike mission with taps only (reference solution A)', async (
 
   // Remove the two fixed web servers; the confirmation lists dependent connections.
   for (const name of [/EC2 web-1/, /EC2 web-2/]) {
-    await page.getByRole('button', { name }).tap();
+    await tapResource(page, name);
     await sheet(page).getByRole('button', { name: '削除' }).tap();
     await expect(sheet(page)).toContainText('次の接続も一緒に削除されます');
     await sheet(page).getByRole('button', { name: '削除する' }).tap();
@@ -94,13 +104,16 @@ test('solve the TV spike mission with taps only (reference solution A)', async (
   await expect(page.getByRole('button', { name: /EC2 web/ })).toHaveCount(0);
 
   // Upgrade the database.
-  await page.getByRole('button', { name: 'RDS shop-db' }).tap();
+  await tapResource(page, /RDS shop-db/);
   await sheet(page).getByLabel('インスタンスクラス').selectOption('db.large');
   await sheet(page).getByRole('button', { name: '閉じる' }).tap();
 
   await expect(page.getByRole('button', { name: /構成チェック: エラー 0 件/ })).toBeVisible();
   // Settings are readable without opening forms: one box per AZ with a summary line.
+  await openServers(page);
   await expect(page.getByRole('button', { name: /ASG asg-1 small・2〜14台/ })).toHaveCount(2);
+  // The database is a single-resource layer: its summary is on the overview.
+  await page.getByRole('navigation', { name: '構成図の階層' }).getByRole('button', { name: '全体' }).tap();
   await expect(page.getByRole('button', { name: /RDS shop-db db\.large・単一AZ/ })).toBeVisible();
 
   // First attempt: default warm-up (180 s) is too slow for the ramp — availability just misses.
@@ -112,6 +125,7 @@ test('solve the TV spike mission with taps only (reference solution A)', async (
 
   // Iterate: faster warm-up, then the mission passes.
   await page.getByRole('link', { name: /構成/ }).tap();
+  await openServers(page);
   await page
     .getByRole('button', { name: /ASG asg-1/ })
     .first()
@@ -126,6 +140,7 @@ test('solve the TV spike mission with taps only (reference solution A)', async (
   // The edits were autosaved.
   await page.reload();
   await page.getByRole('link', { name: /構成/ }).tap();
+  await openServers(page);
   await expect(page.getByRole('button', { name: /ASG asg-1/ })).toHaveCount(2); // one box per AZ
 });
 

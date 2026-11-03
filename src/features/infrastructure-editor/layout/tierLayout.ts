@@ -127,6 +127,10 @@ const packLanes = (items: readonly Item[]): number[] => {
 export interface LayoutOptions {
   /** Room for one more text line per box (the apps line in multi-app missions). */
   readonly extraLine?: boolean;
+  /** Draw only these resources (drill-down into one layer). AZ columns and subnets stay for context. */
+  readonly include?: ReadonlySet<NodeId>;
+  /** Omit request/data arrows (network view). */
+  readonly hideTraffic?: boolean;
 }
 
 export const layoutGraph = (graph: InfrastructureGraph, options: LayoutOptions = {}): GraphLayoutResult => {
@@ -173,6 +177,7 @@ export const layoutGraph = (graph: InfrastructureGraph, options: LayoutOptions =
   const byTier: Record<Tier, Item[]> = { entry: [], edge: [], compute: [], data: [], unplaced: [] };
   let unplacedCount = 0;
   for (const node of listNodes(graph)) {
+    if (options.include && !options.include.has(node.id)) continue;
     const tier = TIER_OF[node.serviceType];
     if (!tier) continue;
     if (tier === 'entry') {
@@ -302,7 +307,9 @@ export const layoutGraph = (graph: InfrastructureGraph, options: LayoutOptions =
 
   // Chips: security groups and monitoring.
   const chips: LayoutChip[] = [];
-  const chipNodes = nodesOfType(graph, 'network.security_group', 'monitoring.cloudwatch');
+  const chipNodes = nodesOfType(graph, 'network.security_group', 'monitoring.cloudwatch').filter(
+    (n) => !options.include || options.include.has(n.id),
+  );
   if (chipNodes.length > 0) {
     y += L.rowGap;
     const chipWidth = L.columnWidth;
@@ -325,7 +332,7 @@ export const layoutGraph = (graph: InfrastructureGraph, options: LayoutOptions =
   const topOf = (r: LayoutNode) => ({ x: r.x + r.width / 2, y: r.y });
 
   const edges: LayoutEdge[] = [];
-  for (const c of listConnections(graph)) {
+  for (const c of options.hideTraffic ? [] : listConnections(graph)) {
     if (c.connectionType !== 'routes_to' && c.connectionType !== 'data_access') continue;
     const sources = partsById.get(c.sourceNodeId) ?? [];
     // Requests go to every zonal part; database traffic goes to the primary only.
