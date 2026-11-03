@@ -41,10 +41,10 @@ test('projects persist across reloads and can be deleted', async ({ page }) => {
   await expect(page.getByRole('status')).toHaveText('保存済み');
   await page.reload();
   await expect(page.getByRole('heading', { level: 2, name: 'TV放映によるアクセス急増' })).toBeVisible();
-  await page.goto('/#/');
+  await page.goto('/#projects');
   await expect(page.locator('.project-card')).toHaveCount(1);
-  page.once('dialog', (d) => void d.accept());
   await page.getByRole('button', { name: '削除' }).tap();
+  await page.getByRole('button', { name: '削除する' }).tap();
   await expect(page.locator('.project-card')).toHaveCount(0);
   await page.reload();
   await expect(page.getByText('まだ案件がありません')).toBeVisible();

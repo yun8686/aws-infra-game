@@ -25,6 +25,14 @@ npm run playtest        # builds and serves on the local network, port 4173
 ```
 
 Open `http://<this computer's LAN IP>:4173/` on the phone (same Wi-Fi). Each phone keeps its own save (IndexedDB).
+
+### Remote testers: private Claude artifact link
+
+```bash
+npm run build:artifact   # writes dist-artifact/infra-manager.html (JS and CSS inlined)
+```
+
+The page is published as a Claude artifact; it starts private and the owner chooses whom to share it with. Differences from the normal build: no offline/PWA support (service workers are not available in artifacts) and each tester's saves stay in their own browser. Deleting a project uses an in-page confirmation because the artifact frame suppresses `confirm()`.
 To reset a phone between participants: delete the project from the list, or clear site data.
 
 ## Session (≈ 35 min)

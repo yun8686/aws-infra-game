@@ -14,7 +14,7 @@
   --status-critical: #d03b3b;
 }
 @media (prefers-color-scheme: dark) {
-  .viz-root {
+  :root:not([data-theme='light']) .viz-root {
     --viz-surface: #1a1a19;
     --viz-text-primary: #f0efec;
     --viz-text-secondary: #c3c2b7;
@@ -25,6 +25,17 @@
     --series-2: #d95926;
     --series-3: #199e70;
   }
+}
+:root[data-theme='dark'] .viz-root {
+  --viz-surface: #1a1a19;
+  --viz-text-primary: #f0efec;
+  --viz-text-secondary: #c3c2b7;
+  --viz-muted: #898781;
+  --viz-grid: #2c2c2a;
+  --viz-axis: #383835;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
 }
 .chart-card {
   background: var(--viz-surface);

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAppStore } from '../../app/AppContext';
 import { navigate } from '../../app/router';
 import { MISSION_TEXT_JA } from '../../data/i18n/ja/missions';
@@ -11,6 +12,8 @@ const STATUS_CLASS = { not_run: 'is-muted', failed: 'is-bad', passed: 'is-ok' } 
 
 function ProjectCard({ project }: { readonly project: Project }) {
   const deleteProject = useAppStore((s) => s.deleteProject);
+  // In-page confirmation: some hosts (Claude artifacts) suppress window.confirm.
+  const [confirming, setConfirming] = useState(false);
   const missionId = project.missionId as MissionId;
   const text = MISSION_TEXT_JA[missionId];
   const budget = MISSIONS[missionId]?.objectives.monthlyBudget ?? 0;
@@ -59,16 +62,21 @@ function ProjectCard({ project }: { readonly project: Project }) {
           )}
         </dl>
       </button>
-      <button
-        type="button"
-        className="text-button danger"
-        onClick={() => {
-          if (window.confirm(`「${project.name}」を削除しますか？ この操作は元に戻せません。`))
-            void deleteProject(project.id);
-        }}
-      >
-        削除
-      </button>
+      {confirming ? (
+        <div className="confirm-row" role="group" aria-label="削除の確認">
+          <span>「{project.name}」を削除しますか？ 元に戻せません。</span>
+          <button type="button" className="text-button" onClick={() => setConfirming(false)}>
+            キャンセル
+          </button>
+          <button type="button" className="text-button danger" onClick={() => void deleteProject(project.id)}>
+            削除する
+          </button>
+        </div>
+      ) : (
+        <button type="button" className="text-button danger" onClick={() => setConfirming(true)}>
+          削除
+        </button>
+      )}
     </li>
   );
 }

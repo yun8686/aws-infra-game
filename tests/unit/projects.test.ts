@@ -43,14 +43,15 @@ describe('project model', () => {
 });
 
 describe('router', () => {
-  it('parses and builds hash routes', () => {
+  it('parses and builds hash routes made only of letters, digits and hyphens', () => {
     expect(parseRoute('')).toEqual({ name: 'projects' });
-    expect(parseRoute('#/p/abc/results')).toEqual({ name: 'project', id: 'abc', tab: 'results' });
-    expect(parseRoute('#/p/abc/unknown')).toEqual({ name: 'project', id: 'abc', tab: 'brief' });
-    expect(routeHref({ name: 'project', id: 'a b', tab: 'monitor' })).toBe('#/p/a%20b/monitor');
-    expect(parseRoute(routeHref({ name: 'project', id: 'a b', tab: 'monitor' }))).toMatchObject({
-      id: 'a b',
-    });
+    expect(parseRoute('#projects')).toEqual({ name: 'projects' });
+    const id = '3f2a9c1e-6b7d-4e1a-9f00-1234567890ab';
+    expect(parseRoute(`#p--${id}--results`)).toEqual({ name: 'project', id, tab: 'results' });
+    expect(parseRoute(`#p--${id}--unknown`)).toEqual({ name: 'project', id, tab: 'brief' });
+    expect(routeHref({ name: 'project', id, tab: 'monitor' })).toBe(`#p--${id}--monitor`);
+    expect(routeHref({ name: 'project', id, tab: 'monitor' })).toMatch(/^#[A-Za-z0-9-]+$/);
+    expect(parseRoute('#p--bad id--brief')).toEqual({ name: 'projects' });
   });
 });
 

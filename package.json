@@ -19,7 +19,8 @@
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run test",
     "sim": "tsx scripts/simulate.ts",
     "test:e2e": "playwright test",
-    "playtest": "vite build && vite preview --host --port 4173"
+    "playtest": "vite build && vite preview --host --port 4173",
+    "build:artifact": "node scripts/build-artifact.mjs"
   },
   "dependencies": {
     "react": "^19.3.1",

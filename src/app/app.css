@@ -28,10 +28,10 @@
   --bad: #b91c1c;
   --bad-bg: #fee2e2;
   --tabbar-h: 60px;
-  color-scheme: light dark;
+  color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #0b1220;
     --surface: #111a2e;
     --text: #e2e8f0;
@@ -55,7 +55,34 @@
     --warn-bg: #451a03;
     --bad: #f87171;
     --bad-bg: #450a0a;
+    color-scheme: dark;
   }
+}
+:root[data-theme='dark'] {
+  --bg: #0b1220;
+  --surface: #111a2e;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --muted-strong: #cbd5e1;
+  --border: #23324f;
+  --zone-fill: #111a2e;
+  --zone-stroke: #23324f;
+  --vpc-stroke: #475569;
+  --subnet-fill: #15213a;
+  --node-fill: #0f172a;
+  --node-stroke: #475569;
+  --chip-fill: #15213a;
+  --edge: #94a3b8;
+  --accent: #3b82f6;
+  --accent-strong: #93c5fd;
+  --selected: #fb7185;
+  --ok: #4ade80;
+  --ok-bg: #14532d;
+  --warn: #fbbf24;
+  --warn-bg: #451a03;
+  --bad: #f87171;
+  --bad-bg: #450a0a;
+  color-scheme: dark;
 }
 * {
   box-sizing: border-box;
@@ -109,11 +136,11 @@ a {
 }
 .app-header,
 .project-header {
-  padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+  padding: 12px 16px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   position: sticky;
-  top: 0;
+  top: env(safe-area-inset-top, 0px);
   z-index: 10;
 }
 .app-header h1 {
@@ -174,7 +201,7 @@ a {
   color: var(--bad);
 }
 .is-muted.chip-badge {
-  background: var(--zone-fill);
+  background: var(--subnet-fill);
   color: var(--muted-strong);
 }
 .save-state {
@@ -497,4 +524,23 @@ a {
     transition: none !important;
     animation: none !important;
   }
+}
+
+/* Paint the safe-area band above the sticky header (phone apps). */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0 0 auto;
+  height: env(safe-area-inset-top, 0px);
+  z-index: 10;
+  background: var(--surface);
+}
+.confirm-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 8px 8px 16px;
+  font-size: 13px;
 }
