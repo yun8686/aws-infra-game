@@ -194,3 +194,15 @@ describe('run staleness and focus routes', () => {
     expect(parseRoute(routeHref(r))).toEqual(r);
   });
 });
+
+describe('progressive hints', () => {
+  it('reveals one more hint per failed attempt and none before running or after passing', async () => {
+    const { revealedHintCount } = await import('../../src/domain/projects/project');
+    const base = sample();
+    const failedRun = { passed: false } as NonNullable<typeof base.lastRun>;
+    expect(revealedHintCount(base, 3)).toBe(0);
+    expect(revealedHintCount({ ...base, lastRun: failedRun, attempts: 1 }, 3)).toBe(1);
+    expect(revealedHintCount({ ...base, lastRun: failedRun, attempts: 5 }, 3)).toBe(3);
+    expect(revealedHintCount({ ...base, lastRun: { ...failedRun, passed: true }, attempts: 2 }, 3)).toBe(0);
+  });
+});

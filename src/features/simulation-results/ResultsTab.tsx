@@ -9,6 +9,9 @@ import type { Finding } from '../../domain/validation/findings';
 import { credits, ms, percent } from '../../shared/ui/format';
 import { nodeLabel } from '../infrastructure-editor/components/EditorSheets';
 import { StaleNotice } from '../monitoring/MonitorTab';
+import { MISSION_TEXT_JA } from '../../data/i18n/ja/missions';
+import type { MissionId } from '../../data/missions';
+import { revealedHintCount } from '../../domain/projects/project';
 
 const formatCheck = (c: Check): string => {
   switch (c.metric) {
@@ -161,6 +164,27 @@ export function ResultsTab({ projectId }: { readonly projectId: string }) {
               </ol>
             </section>
           )}
+
+          {(() => {
+            const hints = MISSION_TEXT_JA[project.missionId as MissionId]?.hints ?? [];
+            const shown = revealedHintCount(project, hints.length);
+            if (e.passed || shown === 0) return null;
+            return (
+              <section className="card card-body hint-card">
+                <h3>
+                  ヒント（{shown}/{hints.length}）
+                </h3>
+                <ul className="bullet-list">
+                  {hints.slice(0, shown).map((h) => (
+                    <li key={h}>{h}</li>
+                  ))}
+                </ul>
+                {shown < hints.length && (
+                  <p className="fine-print">再挑戦するたびに、次のヒントが表示されます。</p>
+                )}
+              </section>
+            );
+          })()}
 
           {e.securityFindings.length > 0 && (
             <section className="card card-body">

@@ -3,6 +3,7 @@
   --surface: #ffffff;
   --text: #0f172a;
   --muted: #64748b;
+  --muted-strong: #475569;
   --border: #e2e8f0;
   --zone-fill: #f1f5f9;
   --zone-stroke: #cbd5e1;
@@ -13,6 +14,7 @@
   --chip-fill: #f1f5f9;
   --edge: #64748b;
   --accent: #2563eb;
+  --accent-strong: #1d4ed8;
   --accent-text: #ffffff;
   --accent-lb: #7c3aed;
   --accent-compute: #ea580c;
@@ -34,6 +36,7 @@
     --surface: #111a2e;
     --text: #e2e8f0;
     --muted: #94a3b8;
+    --muted-strong: #cbd5e1;
     --border: #23324f;
     --zone-fill: #111a2e;
     --zone-stroke: #23324f;
@@ -44,6 +47,7 @@
     --chip-fill: #15213a;
     --edge: #94a3b8;
     --accent: #3b82f6;
+    --accent-strong: #93c5fd;
     --selected: #fb7185;
     --ok: #4ade80;
     --ok-bg: #14532d;
@@ -171,7 +175,7 @@ a {
 }
 .is-muted.chip-badge {
   background: var(--zone-fill);
-  color: var(--muted);
+  color: var(--muted-strong);
 }
 .save-state {
   font-size: 12px;
@@ -459,4 +463,38 @@ a {
 .wide-secondary {
   width: 100%;
   margin-bottom: 12px;
+}
+.guide-card {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  border-radius: 12px;
+  padding: 10px 6px 10px 14px;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+.guide-card .text-button {
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+.guide-text {
+  flex: 1;
+}
+.guide-text ol {
+  margin: 4px 0 0;
+  padding-left: 20px;
+}
+.hint-card {
+  border-color: var(--warn);
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation: none !important;
+  }
 }

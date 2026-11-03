@@ -6,6 +6,7 @@ import { MISSIONS, type MissionId } from '../../data/missions';
 import { SCENARIOS, type ScenarioId } from '../../data/scenarios';
 import { credits, ms, percent } from '../../shared/ui/format';
 import { WorkloadChart } from './WorkloadChart';
+import { GuideCard } from '../../shared/ui/GuideCard';
 
 export function BriefingTab({ projectId }: { readonly projectId: string }) {
   const project = useAppStore((s) => s.projects[projectId]);
@@ -19,6 +20,14 @@ export function BriefingTab({ projectId }: { readonly projectId: string }) {
 
   return (
     <div className="tab-content">
+      <GuideCard id="guide-brief" title="進め方">
+        <ol>
+          <li>顧客の依頼と達成条件を読みます。</li>
+          <li>「結果」タブで、今の構成のままシミュレーションしてみます。</li>
+          <li>「構成」タブで構成を直し、もう一度実行します。</li>
+          <li>「監視」タブで、いつ・どこで問題が起きたかを確認できます。</li>
+        </ol>
+      </GuideCard>
       <section className="card card-body">
         <h2>{text.title}</h2>
         <p className="muted">

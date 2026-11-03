@@ -32,6 +32,7 @@ import {
 } from './components/EditorSheets';
 import { OutlineView } from './components/OutlineView';
 import './editor.css';
+import { GuideCard } from '../../shared/ui/GuideCard';
 
 type Mode =
   | { readonly kind: 'idle' }
@@ -102,7 +103,8 @@ export function ArchitectureTab({
     // Keep the selected resource visible above the bottom sheet.
     if (!focusId) return;
     const el = document.querySelector(`[data-node-id="${CSS.escape(focusId)}"]`);
-    el?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    el?.scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
   }, [focusId]);
 
   if (!project || !graph || !report) return null;
@@ -110,6 +112,7 @@ export function ArchitectureTab({
   const locked = new Set(Object.keys(policy.lockedNodes ?? {}));
   const errorCount = report.findings.filter((f) => f.severity === 'error').length;
   const warningCount = report.findings.filter((f) => f.severity === 'warning').length;
+  const checkText = errorCount > 0 ? `⛔ ${errorCount}` : warningCount > 0 ? `⚠ ${warningCount}` : '✓ OK';
   const selectedNodeId =
     mode.kind === 'node' || mode.kind === 'connect' || mode.kind === 'confirmDelete'
       ? mode.nodeId
@@ -191,9 +194,9 @@ export function ArchitectureTab({
           type="button"
           className={`tool-button ${errorCount > 0 ? 'has-errors' : warningCount > 0 ? 'has-warnings' : 'is-clean'}`}
           onClick={() => setMode({ kind: 'validation' })}
-          aria-label={`構成チェック: エラー ${errorCount} 件、警告 ${warningCount} 件`}
+          aria-label={`${checkText}（構成チェック: エラー ${errorCount} 件、警告 ${warningCount} 件）`}
         >
-          {errorCount > 0 ? `⛔ ${errorCount}` : warningCount > 0 ? `⚠ ${warningCount}` : '✓ OK'}
+          {checkText}
         </button>
         <button
           type="button"
@@ -224,6 +227,11 @@ export function ArchitectureTab({
         </button>
       </div>
 
+      <GuideCard id="guide-architecture" title="構成の編集">
+        リソースをタップすると設定を変更できます。「＋
+        追加」でサービスを追加し、設定パネルの「接続を追加」で接続します。 ⛔
+        のエラーがあるとシミュレーションできません。ドラッグ操作は不要です。
+      </GuideCard>
       {view === 'diagram' ? (
         <>
           <GraphCanvas

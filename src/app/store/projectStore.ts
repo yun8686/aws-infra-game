@@ -159,7 +159,10 @@ export const createAppStore = (deps: AppDeps): StoreApi<AppState> =>
         const result = runMission(mission, scenario, project.graph);
         if (!result.ok) return { ok: false, error: result.error };
         set((s) => ({ runs: { ...s.runs, [id]: result.value }, playhead: { ...s.playhead, [id]: 0 } }));
-        updateProject(id, { lastRun: summarizeRun(result.value.simulation, result.value.evaluation) });
+        updateProject(id, {
+          lastRun: summarizeRun(result.value.simulation, result.value.evaluation),
+          attempts: (project.attempts ?? 0) + 1,
+        });
         return { ok: true, run: result.value };
       },
 

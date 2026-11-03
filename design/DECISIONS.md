@@ -95,3 +95,15 @@ Status: Accepted (2026-11-03)
 Status: Accepted (2026-11-03)
 
 User-facing text is referenced by keys from the start. Only Japanese is provided in MVP. AWS official icons are not used; service names are shown descriptively with an educational disclaimer. Product naming is to be reviewed before release.
+
+## 0013 — Hand-written service worker for offline play
+
+Status: Accepted (2026-11-03)
+
+The app is an installable PWA (manifest, icons) with a small hand-written service worker: navigations are network-first with the cached app shell as fallback; same-origin assets are cache-first (Vite assets are content-hashed). Registered in production builds only. No build plugin, to keep dependencies small. Everything (simulation, saves) runs on the device, so the game works fully offline after the first visit.
+
+## 0014 — Keyboard operation deferred
+
+Status: Accepted (2026-11-03)
+
+Per product direction, keyboard operation is not a requirement for now. Existing keyboard affordances are kept but not extended or tested. Touch and screen-reader basics (accessible names, contrast, reduced motion) are checked with axe in E2E.

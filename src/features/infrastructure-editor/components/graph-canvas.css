@@ -20,7 +20,7 @@
   fill: var(--subnet-fill);
 }
 .zone text {
-  font-size: 9px;
+  font-size: 10px;
   fill: var(--muted);
 }
 .edge {
@@ -59,7 +59,7 @@
   stroke-width: 3;
 }
 .node-type {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   fill: var(--muted);
 }

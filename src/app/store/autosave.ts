@@ -17,7 +17,7 @@ export const startAutosave = (
   repo: ProjectRepository,
   options: { readonly delayMs?: number; readonly retryMs?: number } = {},
 ): Autosave => {
-  const delay = options.delayMs ?? 500;
+  const delay = options.delayMs ?? 300;
   const retry = options.retryMs ?? 3000;
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
 

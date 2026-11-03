@@ -82,7 +82,7 @@
 }
 .chart-svg .tick {
   fill: var(--viz-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-variant-numeric: tabular-nums;
 }
 .chart-svg .series {
@@ -97,7 +97,7 @@
 }
 .chart-svg .threshold-label {
   fill: var(--viz-text-secondary);
-  font-size: 9px;
+  font-size: 10px;
 }
 .chart-svg .event-tick {
   stroke: var(--viz-muted);

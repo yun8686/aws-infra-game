@@ -31,6 +31,8 @@ export interface Project {
   readonly graph: InfrastructureGraph;
   readonly lastRun?: RunSummary;
   readonly submitted?: RunSummary;
+  /** Number of simulation runs, used to reveal hints progressively. */
+  readonly attempts?: number;
   /** Epoch milliseconds supplied by the application layer (domain code never reads the clock). */
   readonly createdAt: number;
   readonly updatedAt: number;
@@ -62,6 +64,7 @@ export const projectSchema = z.object({
   graph: graphDocumentSchema,
   lastRun: runSummarySchema.optional(),
   submitted: runSummarySchema.optional(),
+  attempts: z.int().min(0).optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 });
@@ -113,3 +116,7 @@ export const summarizeRun = (sim: SimulationResult, evaluation: EvaluationResult
 /** Status shown on the project list. A run is stale once the graph changes after it. */
 export const projectStatus = (p: Project): ProjectStatus =>
   p.lastRun ? (p.lastRun.passed ? 'passed' : 'failed') : 'not_run';
+
+/** Hints shown after failed attempts: one more per failed run, never before the first run. */
+export const revealedHintCount = (p: Project, totalHints: number): number =>
+  p.lastRun && !p.lastRun.passed ? Math.min(totalHints, p.attempts ?? 1) : 0;

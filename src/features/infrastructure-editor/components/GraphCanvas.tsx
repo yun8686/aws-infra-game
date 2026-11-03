@@ -30,6 +30,7 @@ export interface NodeMetricBadge {
 }
 
 const LEVEL_ICON = { ok: '✓', warn: '⚠', bad: '⛔' } as const;
+const LEVEL_TEXT = { ok: '余裕あり', warn: '注意', bad: '危険' } as const;
 
 const shortLabel = (serviceType: string): string =>
   isServiceTypeId(serviceType) ? SERVICE_TEXT_JA[serviceType].short : '?';
@@ -91,7 +92,9 @@ export function GraphCanvas({
 
         {layout.zones.map((z) => {
           const target = z.nodeIds[0];
-          const name = z.kind === 'subnet' ? `サブネット ${z.label}` : `VPC ${z.label}`;
+          const visible = z.kind === 'subnet' ? `${z.key.split(':')[0]} · ${z.label}` : z.label;
+          // The accessible name starts with the visible text (voice-control users say what they see).
+          const name = `${visible}（${z.kind === 'subnet' ? 'サブネット' : 'VPC'}）`;
           return (
             <g
               key={`${z.kind}:${z.key}`}
@@ -108,7 +111,7 @@ export function GraphCanvas({
             >
               <rect x={z.x} y={z.y} width={z.width} height={z.height} rx={z.kind === 'vpc' ? 10 : 6} />
               <text x={z.x + 6} y={z.y + 13}>
-                {z.kind === 'subnet' ? `${z.key.split(':')[0]} · ${z.label}` : z.label}
+                {visible}
               </text>
             </g>
           );
@@ -146,6 +149,14 @@ export function GraphCanvas({
           if (!node) return null;
           const issue = issues?.[n.id];
           const metric = metrics?.[n.id];
+          // The accessible name comes from the visible "TYPE name" text; extra state is a description.
+          const extra = [
+            metric ? `${LEVEL_TEXT[metric.level]} ${metric.text}` : '',
+            locked?.has(n.id) ? 'ロック中' : '',
+            issue === 'error' ? 'エラーあり' : issue === 'warning' ? '警告あり' : '',
+          ]
+            .filter(Boolean)
+            .join('、');
           return (
             <g
               key={n.id}
@@ -154,28 +165,46 @@ export function GraphCanvas({
               role="button"
               tabIndex={0}
               aria-pressed={selectedId === n.id}
-              aria-label={`${shortLabel(node.serviceType)} ${node.name}`}
+              aria-describedby={extra ? `desc-${n.id}` : undefined}
               onClick={(ev) => {
                 ev.stopPropagation();
                 select(n.id);
               }}
               onKeyDown={keySelect(n.id)}
             >
+              {extra && <desc id={`desc-${n.id}`}>{extra}</desc>}
               <rect x={n.x} y={n.y} width={n.width} height={n.height} rx={8} />
-              <text className="node-type" x={n.x + 8} y={n.y + 18}>
-                {shortLabel(node.serviceType)}
-                {locked?.has(n.id) ? ' 🔒' : ''}
+              {/* One text element so the visible text reads "TYPE name", matching the accessible name. */}
+              <text x={n.x + 8} y={n.y + 18}>
+                <tspan className="node-type">{shortLabel(node.serviceType)}</tspan>{' '}
+                <tspan className="node-name" x={n.x + 8} dy={18}>
+                  {node.name}
+                </tspan>
               </text>
-              <text className="node-name" x={n.x + 8} y={n.y + 36}>
-                {node.name}
-              </text>
+              {locked?.has(n.id) && (
+                <text className="node-type" x={n.x + 34} y={n.y + 18} aria-hidden="true">
+                  🔒
+                </text>
+              )}
               {metric ? (
-                <text className="node-metric" x={n.x + n.width - 8} y={n.y + 18} textAnchor="end">
+                <text
+                  className="node-metric"
+                  x={n.x + n.width - 8}
+                  y={n.y + 18}
+                  textAnchor="end"
+                  aria-hidden="true"
+                >
                   {LEVEL_ICON[metric.level]} {metric.text}
                 </text>
               ) : (
                 n.securityGroupIds.length > 0 && (
-                  <text className="node-sg" x={n.x + n.width - 8} y={n.y + 18} textAnchor="end">
+                  <text
+                    className="node-sg"
+                    x={n.x + n.width - 8}
+                    y={n.y + 18}
+                    textAnchor="end"
+                    aria-hidden="true"
+                  >
                     🛡{n.securityGroupIds.length}
                   </text>
                 )

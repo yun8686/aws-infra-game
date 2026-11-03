@@ -11,6 +11,7 @@ import { credits, ms, percent } from '../../shared/ui/format';
 import { badgesAt, computeNodeIds, databaseNodeIds, pick } from './series';
 import type { StepMetrics } from '../../domain/simulation/types';
 import './monitor.css';
+import { GuideCard } from '../../shared/ui/GuideCard';
 
 const COLORS = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)'] as const;
 const MAX_SERIES = 3;
@@ -131,6 +132,10 @@ export function MonitorTab({ projectId }: { readonly projectId: string }) {
   return (
     <div className="tab-content monitor">
       <StaleNotice projectId={projectId} />
+      <GuideCard id="guide-monitor" title="監視画面の見方">
+        ▶
+        で再生するか、スライダーやグラフを横になぞって時刻を動かします。構成図には、その時刻の各リソースの状態が表示されます。
+      </GuideCard>
       <section className="playback" aria-label="再生コントロール">
         <div className="playback-row">
           <button

@@ -82,3 +82,9 @@ startProject(mission) → workingGraph = clone(initialGraph)
 
 - 製品名に「AWS」を含めるか（商標確認）
 - ストア配布の時期と Capacitor 化
+
+## 7. 進捗（2026-11-03）
+
+Phase 0〜7 を完了。受け入れ条件とテストの対応は `docs/ACCEPTANCE.md` を参照。
+- 追加の決定: ADR 0013（PWA / オフライン）、ADR 0014（キーボード操作は当面対象外）。
+- 残課題: 人によるプレイテスト（理解しやすさ・難易度）、ストア配布（Capacitor）、製品名の商標確認。
