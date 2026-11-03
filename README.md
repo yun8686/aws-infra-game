@@ -23,3 +23,15 @@ Claude Codeに次のように依頼してください。
 > CLAUDE.mdとdocs配下の仕様書をすべて読んでください。まだ実装は始めず、仕様の矛盾・不足・技術的リスクを洗い出し、質問と推奨案を提示してください。
 
 仕様確認後、技術スタックを決定してから実装に進みます。
+
+## 開発
+
+```bash
+npm install
+npm run dev      # 開発サーバー
+npm run check    # 型チェック・lint・整形チェック・テスト
+```
+
+- ドメインロジック（`src/domain/`）は UI に依存しない純粋な TypeScript です。
+- サービスごとのモデルと簡略化の内容は `docs/SERVICE_MODELS.md` を参照してください。
+- 承認済みの実装方針は `docs/IMPLEMENTATION_PROPOSAL.md` と `design/DECISIONS.md` にあります。
