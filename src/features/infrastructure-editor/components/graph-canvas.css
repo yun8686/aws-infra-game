@@ -137,3 +137,22 @@
 .zone:focus {
   outline: none;
 }
+.node-metric {
+  font-size: 10px;
+  font-weight: 700;
+  fill: var(--text);
+}
+.heat-ok rect {
+  stroke: #0ca30c;
+  stroke-width: 2.5;
+}
+.heat-warn rect {
+  stroke: #fab219;
+  stroke-width: 3;
+  fill: color-mix(in srgb, #fab219 12%, var(--node-fill));
+}
+.heat-bad rect {
+  stroke: #d03b3b;
+  stroke-width: 3;
+  fill: color-mix(in srgb, #d03b3b 14%, var(--node-fill));
+}

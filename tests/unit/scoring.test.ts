@@ -111,3 +111,27 @@ describe('evaluateMission', () => {
     expect(r.overallScore).toBe(Math.round((0 * 3 + 100 * 3 + 80 * 2 + 100 * 2) / 10));
   });
 });
+
+describe('groupBottlenecks', () => {
+  it('merges windows of the same cause on the same resource', async () => {
+    const { groupBottlenecks } = await import('../../src/domain/scoring/evaluate');
+    const b = (cause: 'compute_saturated' | 'unhealthy_target', start: number, failed: number) => ({
+      cause,
+      nodeIds: ['ec2-1'],
+      connectionIds: [],
+      startMinute: start,
+      endMinute: start + 5,
+      peak: 1,
+      failedRequests: failed,
+    });
+    const g = groupBottlenecks([
+      b('compute_saturated', 30, 100),
+      b('unhealthy_target', 55, 50),
+      b('compute_saturated', 100, 20),
+    ]);
+    expect(g.map((x) => [x.cause, x.windows.map((w) => w.startMinute), x.failedRequests])).toEqual([
+      ['compute_saturated', [30, 100], 120],
+      ['unhealthy_target', [55], 50],
+    ]);
+  });
+});

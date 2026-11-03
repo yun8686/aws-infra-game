@@ -435,3 +435,28 @@ a {
 .primary-button.wide {
   margin-bottom: 12px;
 }
+.hero-score {
+  font-size: 28px;
+}
+.dimension-list li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 8px;
+}
+.dimension-checks {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  color: var(--text);
+}
+.bottleneck-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 6px 0 12px;
+}
+.wide-secondary {
+  width: 100%;
+  margin-bottom: 12px;
+}

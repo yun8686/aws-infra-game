@@ -1,0 +1,85 @@
+.playback {
+  position: sticky;
+  top: 76px;
+  z-index: 6;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+}
+.playback-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.playback-row input[type='range'] {
+  flex: 1;
+  min-height: 44px;
+  accent-color: var(--accent);
+}
+.playback-time {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  min-width: 72px;
+  text-align: right;
+}
+.playback-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin: 4px 0 0;
+}
+.playback-stats dt {
+  font-size: 10px;
+  color: var(--muted);
+}
+.playback-stats dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.monitor-graph {
+  padding: 4px 0;
+}
+.monitor-graph-caption {
+  padding: 0 12px;
+  margin: 4px 0;
+}
+.timeline-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.timeline-list button {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  align-items: baseline;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  color: var(--text);
+  padding: 6px 2px;
+  font-size: 13px;
+}
+.timeline-list .is-scenario button {
+  font-weight: 700;
+}
+.timeline-minute {
+  min-width: 44px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.timeline-list small {
+  color: var(--muted);
+}
+.stale-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}

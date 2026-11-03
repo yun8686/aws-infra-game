@@ -39,7 +39,11 @@ export function App({ repo }: { readonly repo?: ProjectRepository }) {
   const route = useRoute();
   return (
     <AppStoreContext.Provider value={store}>
-      {route.name === 'project' ? <ProjectScreen projectId={route.id} tab={route.tab} /> : <ProjectsScreen />}
+      {route.name === 'project' ? (
+        <ProjectScreen projectId={route.id} tab={route.tab} focus={route.focus} />
+      ) : (
+        <ProjectsScreen />
+      )}
     </AppStoreContext.Provider>
   );
 }

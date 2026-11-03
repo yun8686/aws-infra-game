@@ -20,7 +20,16 @@ export interface GraphCanvasProps {
   readonly locked?: ReadonlySet<NodeId> | undefined;
   /** 1 = fit width. */
   readonly zoom?: number;
+  /** Monitoring overlay: a short status label per node at the selected time (icon + text, never color alone). */
+  readonly metrics?: Readonly<Record<NodeId, NodeMetricBadge>> | undefined;
 }
+
+export interface NodeMetricBadge {
+  readonly text: string;
+  readonly level: 'ok' | 'warn' | 'bad';
+}
+
+const LEVEL_ICON = { ok: '✓', warn: '⚠', bad: '⛔' } as const;
 
 const shortLabel = (serviceType: string): string =>
   isServiceTypeId(serviceType) ? SERVICE_TEXT_JA[serviceType].short : '?';
@@ -38,6 +47,7 @@ export function GraphCanvas({
   issues,
   locked,
   zoom = 1,
+  metrics,
 }: GraphCanvasProps) {
   const layout = useMemo(() => layoutGraph(graph), [graph]);
 
@@ -135,10 +145,11 @@ export function GraphCanvas({
           const node = graph.nodes[n.id];
           if (!node) return null;
           const issue = issues?.[n.id];
+          const metric = metrics?.[n.id];
           return (
             <g
               key={n.id}
-              className={`node node-${categoryClass(node.serviceType)} ${stateClass(n.id)}`}
+              className={`node node-${categoryClass(node.serviceType)} ${stateClass(n.id)} ${metric ? `heat-${metric.level}` : ''}`}
               data-node-id={n.id}
               role="button"
               tabIndex={0}
@@ -158,10 +169,16 @@ export function GraphCanvas({
               <text className="node-name" x={n.x + 8} y={n.y + 36}>
                 {node.name}
               </text>
-              {n.securityGroupIds.length > 0 && (
-                <text className="node-sg" x={n.x + n.width - 8} y={n.y + 18} textAnchor="end">
-                  🛡{n.securityGroupIds.length}
+              {metric ? (
+                <text className="node-metric" x={n.x + n.width - 8} y={n.y + 18} textAnchor="end">
+                  {LEVEL_ICON[metric.level]} {metric.text}
                 </text>
+              ) : (
+                n.securityGroupIds.length > 0 && (
+                  <text className="node-sg" x={n.x + n.width - 8} y={n.y + 18} textAnchor="end">
+                    🛡{n.securityGroupIds.length}
+                  </text>
+                )
               )}
               {issue && (
                 <circle

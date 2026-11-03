@@ -46,7 +46,13 @@ type Mode =
 const ZOOMS = [1, 1.5, 2] as const;
 
 /** Tap-first infrastructure editor (ADR 0002). Every operation works without dragging. */
-export function ArchitectureTab({ projectId }: { readonly projectId: string }) {
+export function ArchitectureTab({
+  projectId,
+  focus,
+}: {
+  readonly projectId: string;
+  readonly focus?: string | undefined;
+}) {
   const project = useAppStore((s) => s.projects[projectId]);
   const undoable = useAppStore((s) => canUndoProject(s, projectId));
   const redoable = useAppStore((s) => canRedoProject(s, projectId));
@@ -55,7 +61,7 @@ export function ArchitectureTab({ projectId }: { readonly projectId: string }) {
     undo: useAppStore((s) => s.undo),
     redo: useAppStore((s) => s.redo),
   };
-  const [mode, setMode] = useState<Mode>({ kind: 'idle' });
+  const [mode, setMode] = useState<Mode>(() => (focus ? { kind: 'node', nodeId: focus } : { kind: 'idle' }));
   const [view, setView] = useState<'diagram' | 'outline'>('diagram');
   const [zoom, setZoom] = useState<(typeof ZOOMS)[number]>(1);
   const [message, setMessage] = useState<string | undefined>();

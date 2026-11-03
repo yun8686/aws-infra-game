@@ -16,7 +16,7 @@ import { runMission, type MissionRun } from '../../domain/missions/runMission';
 import { missionEditPolicy } from '../../domain/missions/mission';
 import type { CommandResult, EditPolicy } from '../../domain/graph/commands';
 import { createProject, summarizeRun, type Project } from '../../domain/projects/project';
-import type { SimulationError } from '../../domain/simulation/engine';
+import { computeInputHash, type SimulationError } from '../../domain/simulation/engine';
 import type { ProjectRepository } from '../persistence/repository';
 
 export type SaveState = 'saved' | 'dirty' | 'saving' | 'error';
@@ -36,6 +36,9 @@ export interface AppState {
   /** Latest full run per project (not persisted; the summary is). */
   readonly runs: Readonly<Record<string, MissionRun>>;
   readonly loadErrors: readonly { readonly id: string; readonly reason: string }[];
+  /** Selected playback minute per project, shared by the monitor and results tabs. */
+  readonly playhead: Readonly<Record<string, number>>;
+  setPlayhead(projectId: string, minute: number): void;
 
   init(): Promise<void>;
   startProject(missionId: MissionId): string;
@@ -82,6 +85,11 @@ export const createAppStore = (deps: AppDeps): StoreApi<AppState> =>
       saveState: {},
       runs: {},
       loadErrors: [],
+      playhead: {},
+
+      setPlayhead(id, minute) {
+        set((s) => ({ playhead: { ...s.playhead, [id]: minute } }));
+      },
 
       async init() {
         try {
@@ -150,7 +158,7 @@ export const createAppStore = (deps: AppDeps): StoreApi<AppState> =>
         const scenario = SCENARIOS[mission.scenarioId as ScenarioId];
         const result = runMission(mission, scenario, project.graph);
         if (!result.ok) return { ok: false, error: result.error };
-        set((s) => ({ runs: { ...s.runs, [id]: result.value } }));
+        set((s) => ({ runs: { ...s.runs, [id]: result.value }, playhead: { ...s.playhead, [id]: 0 } }));
         updateProject(id, { lastRun: summarizeRun(result.value.simulation, result.value.evaluation) });
         return { ok: true, run: result.value };
       },
@@ -187,3 +195,15 @@ export const createAppStore = (deps: AppDeps): StoreApi<AppState> =>
       },
     };
   });
+
+/** True when the latest run was made with a different graph than the current one. */
+export const isRunStale = (s: AppState, id: string): boolean => {
+  const run = s.runs[id];
+  const project = s.projects[id];
+  if (!run || !project) return false;
+  const mission = MISSIONS[project.missionId as MissionId];
+  const scenario = SCENARIOS[mission.scenarioId as ScenarioId];
+  return (
+    computeInputHash({ graph: project.graph, scenario, seed: mission.seed }) !== run.simulation.inputHash
+  );
+};

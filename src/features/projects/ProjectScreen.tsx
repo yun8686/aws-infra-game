@@ -3,6 +3,7 @@ import { routeHref, type ProjectTab } from '../../app/router';
 import { ArchitectureTab } from '../infrastructure-editor/ArchitectureTab';
 import { BriefingTab } from '../missions/BriefingTab';
 import { ResultsTab } from '../simulation-results/ResultsTab';
+import { MonitorTab } from '../monitoring/MonitorTab';
 import { ProjectHeader } from './ProjectHeader';
 
 const TABS: readonly { id: ProjectTab; label: string; icon: string }[] = [
@@ -12,7 +13,15 @@ const TABS: readonly { id: ProjectTab; label: string; icon: string }[] = [
   { id: 'results', label: '結果', icon: '🏁' },
 ];
 
-export function ProjectScreen({ projectId, tab }: { readonly projectId: string; readonly tab: ProjectTab }) {
+export function ProjectScreen({
+  projectId,
+  tab,
+  focus,
+}: {
+  readonly projectId: string;
+  readonly tab: ProjectTab;
+  readonly focus?: string | undefined;
+}) {
   const exists = useAppStore((s) => !!s.projects[projectId]);
   const status = useAppStore((s) => s.status);
   if (!exists) {
@@ -31,14 +40,8 @@ export function ProjectScreen({ projectId, tab }: { readonly projectId: string; 
       <ProjectHeader projectId={projectId} />
       <main className="screen-body">
         {tab === 'brief' && <BriefingTab projectId={projectId} />}
-        {tab === 'architecture' && <ArchitectureTab projectId={projectId} />}
-        {tab === 'monitor' && (
-          <div className="tab-content">
-            <p className="muted">
-              シミュレーション実行後に、リクエスト数・CPU 使用率・DB 接続数などの推移を表示します（開発中）。
-            </p>
-          </div>
-        )}
+        {tab === 'architecture' && <ArchitectureTab key={focus ?? ''} projectId={projectId} focus={focus} />}
+        {tab === 'monitor' && <MonitorTab projectId={projectId} />}
         {tab === 'results' && <ResultsTab projectId={projectId} />}
       </main>
       <nav className="tabbar" aria-label="案件内メニュー">

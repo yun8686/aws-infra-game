@@ -172,3 +172,25 @@ describe('IndexedDB repository', () => {
     expect((await reopened.loadAll()).projects.map((p) => p.id)).toEqual(['b']);
   });
 });
+
+describe('run staleness and focus routes', () => {
+  it('marks a run stale after the graph changes and fresh after undo', async () => {
+    const { isRunStale } = await import('../../src/app/store/projectStore');
+    const { store } = makeStore();
+    await store.getState().init();
+    const id = store.getState().startProject('tv-spike');
+    store.getState().runSimulation(id);
+    expect(isRunStale(store.getState(), id)).toBe(false);
+    store
+      .getState()
+      .applyGraph(id, setConfig(store.getState().projects[id]!.graph, 'ec2-1', { instanceCount: 3 }));
+    expect(isRunStale(store.getState(), id)).toBe(true);
+    store.getState().undo(id);
+    expect(isRunStale(store.getState(), id)).toBe(false);
+  });
+
+  it('routes can focus a resource', () => {
+    const r = { name: 'project', id: 'p', tab: 'architecture', focus: 'rds-1' } as const;
+    expect(parseRoute(routeHref(r))).toEqual(r);
+  });
+});

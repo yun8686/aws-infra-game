@@ -35,6 +35,46 @@ export type LearningTopic =
   | 'security_groups'
   | 'cost_optimization';
 
+/** A cause on specific resources, with every time window in which it failed requests. */
+export interface KeyBottleneck {
+  readonly cause: BottleneckCause;
+  readonly nodeIds: readonly string[];
+  readonly connectionIds: readonly string[];
+  readonly windows: readonly { readonly startMinute: number; readonly endMinute: number }[];
+  readonly failedRequests: number;
+  readonly peak: number;
+}
+
+/** Group failure windows by (cause, resources), most failed requests first. */
+export const groupBottlenecks = (bottlenecks: readonly Bottleneck[], limit = 3): KeyBottleneck[] => {
+  const groups = new Map<string, KeyBottleneck>();
+  for (const b of bottlenecks) {
+    if (b.failedRequests <= 0) continue;
+    const key = `${b.cause}|${b.nodeIds.join()}|${b.connectionIds.join()}`;
+    const prev = groups.get(key);
+    const window = { startMinute: b.startMinute, endMinute: b.endMinute };
+    groups.set(
+      key,
+      prev
+        ? {
+            ...prev,
+            windows: [...prev.windows, window].sort((x, y) => x.startMinute - y.startMinute),
+            failedRequests: prev.failedRequests + b.failedRequests,
+            peak: Math.max(prev.peak, b.peak),
+          }
+        : {
+            cause: b.cause,
+            nodeIds: b.nodeIds,
+            connectionIds: b.connectionIds,
+            windows: [window],
+            failedRequests: b.failedRequests,
+            peak: b.peak,
+          },
+    );
+  }
+  return [...groups.values()].sort((a, b) => b.failedRequests - a.failedRequests).slice(0, limit);
+};
+
 export interface EvaluationResult {
   readonly missionId: string;
   readonly inputHash: string;
@@ -42,8 +82,8 @@ export interface EvaluationResult {
   /** Weighted 0–100 */
   readonly overallScore: number;
   readonly dimensions: readonly DimensionResult[];
-  /** Up to three bottlenecks that caused failures, most impactful first. */
-  readonly keyBottlenecks: readonly Bottleneck[];
+  /** Up to three causes of failed requests, grouped per resource, most impactful first. */
+  readonly keyBottlenecks: readonly KeyBottleneck[];
   readonly securityFindings: readonly Finding[];
   readonly learningTopics: readonly LearningTopic[];
 }
@@ -141,7 +181,7 @@ export const evaluateMission = (mission: Mission, sim: SimulationResult): Evalua
       ? Math.round(dimensions.reduce((sum, d) => sum + d.score * w[d.dimension], 0) / totalWeight)
       : 0;
 
-  const keyBottlenecks = sim.bottlenecks.filter((b) => b.failedRequests > 0).slice(0, 3);
+  const keyBottlenecks = groupBottlenecks(sim.bottlenecks);
   const topics = new Set<LearningTopic>(keyBottlenecks.map((b) => TOPIC_BY_CAUSE[b.cause]));
   if (!costCheck.passed) topics.add('cost_optimization');
   if (securityFindings.length > 0) topics.add('security_groups');
