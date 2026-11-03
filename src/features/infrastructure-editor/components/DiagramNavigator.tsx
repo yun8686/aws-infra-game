@@ -3,6 +3,8 @@ import type { InfrastructureGraph, NodeId } from '../../../domain/graph/types';
 import { buildOverviewGroups, groupContaining, overviewEdges, type OverviewGroup } from '../layout/overview';
 import { GraphCanvas, type GraphCanvasProps } from './GraphCanvas';
 import { OverviewCanvas } from './OverviewCanvas';
+import { AzCanvas } from './AzCanvas';
+import type { AvailabilityZone } from '../../../domain/catalog/services';
 
 export interface DiagramNavigatorProps extends Omit<GraphCanvasProps, 'include' | 'hideTraffic'> {
   readonly graph: InfrastructureGraph;
@@ -92,7 +94,7 @@ export function DiagramNavigator({ reveal, preferNetwork, ...canvas }: DiagramNa
         />
       ) : (
         <>
-          {effective.kind !== 'network' && (
+          {effective.kind !== 'network' && effective.kind !== 'az' && (
             <div className="diagram-context">
               {edges
                 .filter((e) => e.to === effective.key)
@@ -106,7 +108,21 @@ export function DiagramNavigator({ reveal, preferNetwork, ...canvas }: DiagramNa
                 ))}
             </div>
           )}
-          <GraphCanvas {...canvas} include={include} hideTraffic={effective.kind === 'network'} />
+          {effective.kind === 'az' ? (
+            <AzCanvas
+              graph={graph}
+              az={effective.title as AvailabilityZone}
+              selectedId={canvas.selectedId}
+              onSelect={canvas.onSelect}
+              highlight={canvas.highlight}
+              issues={canvas.issues}
+              related={canvas.related}
+              metrics={canvas.metrics}
+              showApps={showApps}
+            />
+          ) : (
+            <GraphCanvas {...canvas} include={include} hideTraffic={effective.kind === 'network'} />
+          )}
         </>
       )}
     </div>

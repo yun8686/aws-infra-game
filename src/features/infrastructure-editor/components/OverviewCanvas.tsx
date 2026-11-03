@@ -105,6 +105,11 @@ export function OverviewCanvas({
             </text>
           </g>
         )}
+        {layout.labels.map((l) => (
+          <text key={l.text} className="overview-section" x={l.x} y={l.y}>
+            {l.text}
+          </text>
+        ))}
         {layout.arrows.map((a, i) => (
           <line
             key={i}
@@ -121,7 +126,11 @@ export function OverviewCanvas({
           const badge = metrics ? groupBadge(g, metrics) : undefined;
           const issue = issueOf(g);
           const drill =
-            g.nodeIds.length > 1 || g.kind === 'compute' || g.kind === 'unplaced' || g.kind === 'network';
+            g.nodeIds.length > 1 ||
+            g.kind === 'compute' ||
+            g.kind === 'unplaced' ||
+            g.kind === 'network' ||
+            g.kind === 'az';
           return (
             <g
               key={g.key}

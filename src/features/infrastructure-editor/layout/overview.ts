@@ -12,7 +12,7 @@ import { LAYOUT } from './tierLayout';
  * apps appear as separate boxes. Each group can be opened to see its resources per AZ.
  */
 
-export type GroupKind = 'entry' | 'lb' | 'compute' | 'database' | 'unplaced' | 'network';
+export type GroupKind = 'entry' | 'lb' | 'compute' | 'database' | 'unplaced' | 'network' | 'az';
 
 export interface OverviewGroup {
   /** Stable key used for navigation, e.g. `compute:orders` or `lb`. */
@@ -47,6 +47,7 @@ export interface OverviewLayout {
     readonly to: { readonly x: number; readonly y: number };
     readonly kind: OverviewEdge['kind'];
   }[];
+  readonly labels: readonly { readonly x: number; readonly y: number; readonly text: string }[];
   readonly vpc?: {
     readonly x: number;
     readonly y: number;
@@ -195,6 +196,27 @@ export const buildOverviewGroups = (
       nodeIds: [...vpcs, ...subnets, ...sgs, ...others].map((n) => n.id),
     });
   }
+  // One card per AZ: what lives in each zone, for AZ drill-down (subnets and the resources in them).
+  for (const az of azs) {
+    const azSubnets = subnets.filter((s) => readConfig(s, 'network.subnet')?.az === az);
+    const residents = listNodes(graph).filter(
+      (n) => n.serviceType !== 'network.subnet' && subnetsOf(graph, n.id).some((s) => azSubnets.includes(s)),
+    );
+    const count = (...types: string[]) => residents.filter((n) => types.includes(n.serviceType)).length;
+    const parts = [
+      count('compute.ec2') ? `EC2 ${count('compute.ec2')}` : '',
+      count('compute.autoscaling') ? `ASG ${count('compute.autoscaling')}` : '',
+      count('database.rds') ? `RDS ${count('database.rds')}` : '',
+      count('lb.alb') ? `ALB ${count('lb.alb')}` : '',
+    ].filter(Boolean);
+    groups.push({
+      key: `az:${az}`,
+      kind: 'az',
+      title: az,
+      lines: [`サブネット ${azSubnets.length}`, parts.length > 0 ? parts.join('・') : 'リソースなし'],
+      nodeIds: [...azSubnets.map((s) => s.id), ...residents.map((n) => n.id)],
+    });
+  }
   return groups;
 };
 
@@ -204,7 +226,8 @@ export const overviewEdges = (
   groups: readonly OverviewGroup[],
 ): OverviewEdge[] => {
   const groupOf = new Map<NodeId, string>();
-  for (const g of groups) for (const id of g.nodeIds) groupOf.set(id, g.key);
+  // AZ cards are another way to slice the same resources; traffic is drawn between layers only.
+  for (const g of groups) if (g.kind !== 'az') for (const id of g.nodeIds) groupOf.set(id, g.key);
   const seen = new Set<string>();
   const out: OverviewEdge[] = [];
   for (const c of listConnections(graph)) {
@@ -220,12 +243,13 @@ export const overviewEdges = (
   return out;
 };
 
+/** The layer a resource belongs to (AZ cards are a different slice, not layers). */
 export const groupContaining = (
   groups: readonly OverviewGroup[],
   nodeId: NodeId,
-): OverviewGroup | undefined => groups.find((g) => g.nodeIds.includes(nodeId));
+): OverviewGroup | undefined => groups.find((g) => g.kind !== 'az' && g.nodeIds.includes(nodeId));
 
-const ROW_ORDER: readonly GroupKind[] = ['entry', 'lb', 'compute', 'database', 'unplaced', 'network'];
+const ROW_ORDER: readonly GroupKind[] = ['entry', 'lb', 'compute', 'database', 'unplaced', 'network', 'az'];
 
 /** Rows top → bottom; groups in one row sit side by side. Width matches the detailed diagram. */
 export const layoutOverview = (
@@ -239,6 +263,7 @@ export const layoutOverview = (
   const gap = 10;
   const rowGap = 34;
   const boxes: OverviewBox[] = [];
+  const labels: { x: number; y: number; text: string }[] = [];
   let y = L.margin;
   let vpcTop: number | undefined;
   let vpcBottom = y;
@@ -246,6 +271,10 @@ export const layoutOverview = (
     const row = groups.filter((g) => g.kind === kind);
     if (row.length === 0) continue;
     if (kind === 'network') y += 10;
+    if (kind === 'az') {
+      labels.push({ x: L.margin, y: y + 4, text: 'AZごとに見る' });
+      y += 14;
+    }
     const inside = kind === 'lb' || kind === 'compute' || kind === 'database' || kind === 'unplaced';
     if (inside && vpcTop === undefined) {
       vpcTop = y - 14;
@@ -281,6 +310,7 @@ export const layoutOverview = (
     height: y - rowGap + L.margin + 10,
     boxes,
     arrows,
+    labels,
     ...(vpcTop !== undefined && vpcName
       ? {
           vpc: {
