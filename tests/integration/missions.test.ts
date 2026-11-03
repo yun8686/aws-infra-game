@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { MISSIONS, startMissionById } from '../../src/data/missions';
 import { SCENARIOS } from '../../src/data/scenarios';
 import { TEMPLATES } from '../../src/data/templates';
-import { removeNode } from '../../src/domain/graph/commands';
+import { disconnect, removeNode } from '../../src/domain/graph/commands';
 import type { InfrastructureGraph } from '../../src/domain/graph/types';
 import { runMission, type MissionRun } from '../../src/domain/missions';
 import { validateGraph } from '../../src/domain/validation';
-import { buildWebStackFromBaseline } from '../fixtures/builders';
+import { buildWebStackFromBaseline, unwrap } from '../fixtures/builders';
 import {
   ASG_SMALL,
   overProvisioned,
@@ -61,6 +61,17 @@ describe('mission: TV traffic spike — reference solutions', () => {
     const r = play(g);
     expect(failed(r)).toEqual(['availability']);
     expect(r.evaluation.keyBottlenecks[0]?.cause).toBe('compute_saturated');
+  });
+
+  it('regression (playtest): disconnecting the web tier from its database is not a shortcut', () => {
+    const conn = Object.values(start.connections).find((c) => c.connectionType === 'data_access');
+    if (!conn) throw new Error('fixture');
+    const g = unwrap(disconnect(setConfig(start, 'ec2-1', { instanceCount: 12 }), conn.id, policy)).graph;
+    expect(validateGraph(g).findings.map((f) => f.code)).toContain('dependency.compute_without_database');
+    const r = play(g);
+    expect(r.evaluation.passed).toBe(false);
+    expect(r.evaluation.keyBottlenecks[0]?.cause).toBe('no_database');
+    expect(r.evaluation.learningTopics).toContain('dependencies');
   });
 
   it('static over-provisioning meets the SLOs but fails the budget', () => {

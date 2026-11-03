@@ -13,6 +13,7 @@ export interface StepIssue {
 
 const CAUSE_ORDER: readonly BottleneckCause[] = [
   'sg_blocked',
+  'no_database',
   'db_unavailable',
   'compute_unavailable',
   'no_healthy_targets',

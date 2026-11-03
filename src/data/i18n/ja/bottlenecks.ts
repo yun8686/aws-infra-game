@@ -53,6 +53,13 @@ export const BOTTLENECK_TEXT_JA: { readonly [K in BottleneckCause]: FindingText 
     explanation: 'データベースの障害または AZ 障害で、データベースを使うリクエストがすべて失敗しました。',
     remediation: 'Multi-AZ を有効にすると、短時間のフェイルオーバーで復旧できます。',
   },
+  no_database: {
+    message: 'サーバーがデータベースに接続されていません',
+    explanation:
+      'このアプリは注文や商品情報のためにデータベースが必要です。接続されていないサーバーはリクエストに応答できません。',
+    remediation:
+      'サーバー（または Auto Scaling）からデータベースへ「データアクセス」の接続を追加してください。',
+  },
   no_healthy_targets: {
     message: 'ロードバランサーに正常な転送先がありません',
     explanation: '転送先がない、または通信が遮断されているため、ヘルスチェックに合格する転送先がありません。',

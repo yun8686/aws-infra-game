@@ -1,7 +1,7 @@
 import { getServiceDefinition, readConfig } from '../catalog/catalog';
 import { COMPUTE_TYPES, SECURABLE_TYPES, SERVICE_TYPES } from '../catalog/ids';
 import { incoming, listNodes, nodesOfType, outgoing, sourcesOf } from '../graph/graph';
-import { isTrafficAllowed, reachableFromInternet, securityGroupsOf } from '../graph/network';
+import { azsOf, isTrafficAllowed, reachableFromInternet, securityGroupsOf } from '../graph/network';
 import type { InfrastructureGraph } from '../graph/types';
 import { finding, type Finding } from './findings';
 
@@ -66,6 +66,20 @@ export const dependencyFindings = (graph: InfrastructureGraph): Finding[] => {
   for (const compute of computes) {
     if (!reachable.has(compute.id)) {
       out.push(finding('dependency.unreachable_compute', 'warning', 'dependency', { nodeIds: [compute.id] }));
+    }
+  }
+
+  for (const compute of computes) {
+    if (reachable.has(compute.id) && azsOf(graph, compute.id).length === 1) {
+      out.push(finding('placement.single_az_compute', 'info', 'placement', { nodeIds: [compute.id] }));
+    }
+  }
+
+  for (const compute of computes) {
+    if (reachable.has(compute.id) && outgoing(graph, compute.id, 'data_access').length === 0) {
+      out.push(
+        finding('dependency.compute_without_database', 'warning', 'dependency', { nodeIds: [compute.id] }),
+      );
     }
   }
 

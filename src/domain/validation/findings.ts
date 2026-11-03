@@ -35,6 +35,8 @@ export const FINDING_CODES = [
   'dependency.no_security_group',
   'dependency.traffic_blocked_by_security_group',
   'dependency.security_group_rule_dangling_reference',
+  'dependency.compute_without_database',
+  'placement.single_az_compute',
   // security
   'security.db_port_open_to_internet',
   'security.all_ports_open_to_internet',

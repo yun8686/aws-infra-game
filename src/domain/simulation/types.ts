@@ -11,7 +11,8 @@ export type BottleneckCause =
   | 'no_healthy_targets'
   | 'unhealthy_target'
   | 'compute_unavailable'
-  | 'db_unavailable';
+  | 'db_unavailable'
+  | 'no_database';
 
 export type TimelineEventKind =
   | 'instance_failure'

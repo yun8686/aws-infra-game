@@ -49,4 +49,8 @@ export const LEARNING_TOPIC_TEXT_JA: { readonly [K in LearningTopic]: { title: s
     title: 'コスト最適化',
     summary: 'ピークに合わせて常に過剰な台数を持たず、必要なときだけ増やします。',
   },
+  dependencies: {
+    title: 'サービスの依存関係',
+    summary: 'アプリが動くために必要なサービス（データベースなど）が、すべて接続されているかを確認します。',
+  },
 };

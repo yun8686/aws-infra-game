@@ -33,7 +33,8 @@ export type LearningTopic =
   | 'health_checks'
   | 'multi_az'
   | 'security_groups'
-  | 'cost_optimization';
+  | 'cost_optimization'
+  | 'dependencies';
 
 /** A cause on specific resources, with every time window in which it failed requests. */
 export interface KeyBottleneck {
@@ -127,6 +128,7 @@ const TOPIC_BY_CAUSE: Record<BottleneckCause, LearningTopic> = {
   unhealthy_target: 'health_checks',
   no_healthy_targets: 'multi_az',
   sg_blocked: 'security_groups',
+  no_database: 'dependencies',
 };
 
 export const evaluateMission = (mission: Mission, sim: SimulationResult): EvaluationResult => {

@@ -55,4 +55,5 @@ Calibration (verified by `tests/integration/missions.test.ts`):
 | Reference A: Auto Scaling small 2–14 @60% + db.large | Passes (~11,700 cr) |
 | Reference B: Auto Scaling medium 2–8 @50% + db.large | Passes (~13,150 cr) |
 | Reference A + DB port open to anywhere | Fails security |
+| EC2 × 12 with the database link removed (playtest exploit, fixed in engine 3) | Fails (`no_database`) |
 | Reference A with the default warm-up (180 s) | Narrowly fails availability (scale-out too slow for the ramp) — an intended iteration step |

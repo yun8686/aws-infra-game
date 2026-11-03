@@ -153,6 +153,17 @@ export const FINDING_TEXT_JA: { readonly [K in FindingCode]: FindingText } = {
     explanation: '参照先が削除されたため、このルールは機能しません。',
     remediation: 'ルールを削除するか、参照先を選び直してください。',
   },
+  'placement.single_az_compute': {
+    message: 'サーバーが1つのAZにしかありません',
+    explanation: 'そのAZで障害が起きると、すべてのサーバーが止まります。',
+    remediation: '別のAZのサブネットにも配置すると、AZ障害に強くなります。',
+  },
+  'dependency.compute_without_database': {
+    message: 'このサーバーはデータベースに接続されていません',
+    explanation:
+      'このアプリはデータベースが必要です。接続されていないサーバーに届いたリクエストは失敗します。',
+    remediation: 'データベースへ「データアクセス」の接続を追加してください。',
+  },
   'security.db_port_open_to_internet': {
     message: 'データベースのポートが全世界に公開されています',
     explanation: '誰でもデータベースへの接続を試みられる状態です。重大なリスクです。',

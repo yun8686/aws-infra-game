@@ -23,7 +23,10 @@ describe('validateGraph — start states', () => {
 
   it('the e-commerce template is simulatable and has no security findings', () => {
     const report = validateGraph(TEMPLATES['ecommerce-starter']());
-    expect(report.findings).toEqual([]);
+    // Only the advisory about the deliberately single-AZ web tier (a lesson in the mission).
+    expect(report.findings.map((f) => [f.code, f.severity, f.nodeIds])).toEqual([
+      ['placement.single_az_compute', 'info', ['ec2-1']],
+    ]);
     expect(report.canSimulate).toBe(true);
   });
 });
@@ -136,7 +139,7 @@ describe('validateGraph — placement and dependencies', () => {
     const g = unwrap(
       updateNodeConfig(s.b.graph, s.sgDb, { inboundRules: [{ port: 5432, source: { kind: 'vpc' } }] }),
     ).graph;
-    expect(validateGraph(g).findings).toEqual([]);
+    expect(validateGraph(g).findings.filter((f) => f.severity !== 'info')).toEqual([]);
   });
 
   it('reports dangling security-group references from loaded data', () => {

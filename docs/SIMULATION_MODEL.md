@@ -1,6 +1,6 @@
 # Simulation Model
 
-Version: engine 2 / balance 2
+Version: engine 3 / balance 2
 Status: Phase 3 (failure events, health checks, Auto Scaling dynamics, Multi-AZ failover).
 
 > All numbers are **game-balance assumptions** chosen for teaching. They are not AWS capacity, latency or pricing figures.
@@ -34,7 +34,7 @@ A scenario defines `(minute, rps)` points; traffic is linearly interpolated betw
 2. **Load balancer**: an ALB forwards only to targets that its security-group path allows (a blocked target fails health checks). Traffic is split in proportion to each target's *routable* instances: running instances plus failed instances that health checks have not caught yet. Detection takes `intervalSec × unhealthyThreshold`. Requests sent to an undetected failed instance fail (`unhealthy_target`). With nothing routable, all its traffic fails (`no_healthy_targets`).
    - Direct Internet → server routing has no health checks: a failed server keeps receiving its share until the end of the run.
 3. **Compute**: capacity = running instances × per-instance capacity. Pending (booting) instances do not serve traffic. Demand = arriving rps + backlog. Up to `queueSeconds` of capacity can wait in a backlog; anything beyond is dropped (`compute_saturated`). Unconnected compute receives nothing and contributes no capacity.
-4. **Database** (for each `data_access` link of a serving compute node):
+4. **Database**. When the scenario issues queries (`queriesPerRequest > 0`), the application needs a database: a serving compute node with no `data_access` link fails every request it serves (`no_database`). Then, for each `data_access` link:
    - A blocked link fails those requests (`sg_blocked`).
    - A database that is down fails every request that needs it (`db_unavailable`).
    - Connection demand = Σ (running instances × `poolSize`). If it exceeds the class limit, the excess share fails (`db_connections`). **Adding compute instances raises connection demand.**
@@ -102,7 +102,7 @@ Multi-AZ doubles the database cost. Load balancers are assumed to survive a sing
 
 - Per-step series: offered/success/error rps, error rate, latency, cost rate, per-node metrics (utilization, instances, connections, qps).
 - Summary: total and failed requests, overall error rate, peak error rate, mean and p95 step latency, availability (share of steps with error rate ≤ 5%).
-- Bottlenecks: windows per (cause, node) with peak pressure and failed-request count, sorted by impact (gaps of ≤ 2 steps are merged). Causes: `compute_saturated`, `compute_high_utilization`, `compute_unavailable`, `unhealthy_target`, `no_healthy_targets`, `db_capacity`, `db_high_utilization`, `db_connections`, `db_unavailable`, `sg_blocked`.
+- Bottlenecks: windows per (cause, node) with peak pressure and failed-request count, sorted by impact (gaps of ≤ 2 steps are merged). Causes: `compute_saturated`, `compute_high_utilization`, `compute_unavailable`, `unhealthy_target`, `no_healthy_targets`, `db_capacity`, `db_high_utilization`, `db_connections`, `db_unavailable`, `no_database`, `sg_blocked`.
 - Timeline: scenario events and the system's reactions (failure detected, launches, instance ready, scale out/in, DB failover/recovery).
 
 ## Scenarios

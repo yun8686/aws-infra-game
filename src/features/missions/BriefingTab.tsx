@@ -93,12 +93,9 @@ export function BriefingTab({ projectId }: { readonly projectId: string }) {
       </section>
 
       <section className="card card-body">
-        <h3>ヒント</h3>
-        <ul className="bullet-list">
-          {text.hints.map((h) => (
-            <li key={h}>{h}</li>
-          ))}
-        </ul>
+        <h3>はじめに</h3>
+        <p>{text.firstStep}</p>
+        <p className="fine-print">うまくいかないときは、結果画面に再挑戦のたびにヒントが表示されます。</p>
         <button
           type="button"
           className="primary-button"

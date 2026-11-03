@@ -263,7 +263,7 @@ export function ArchitectureTab({
         <NodeSheet
           graph={graph}
           nodeId={mode.nodeId}
-          findings={report.findings.filter((f) => f.nodeIds.includes(mode.nodeId) && f.severity !== 'info')}
+          findings={report.findings.filter((f) => f.nodeIds.includes(mode.nodeId))}
           deleteBlockedBy={(() => {
             const p = deletePreview(mode.nodeId);
             return p.ok ? undefined : p.error[0];

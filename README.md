@@ -31,6 +31,7 @@ npm install
 npm run dev      # 開発サーバー
 npm run check    # 型チェック・lint・整形チェック・テスト
 npm run test:e2e # スマホ画面サイズでの E2E テスト（Playwright）
+npm run playtest # 同じ Wi-Fi のスマホから遊べるように起動（手順は docs/PLAYTEST.md）
 npm run sim -- --scenario tv-spike --set ec2-1.instanceCount=12   # シミュレーションをコマンドラインで実行
 npm run sim -- --mission tv-spike                                  # ミッションの条件で実行して評価
 ```

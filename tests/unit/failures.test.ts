@@ -109,7 +109,8 @@ describe('health checks', () => {
     b.link(web, pub, 'placed_in');
     b.link(web, sg, 'secured_by');
     b.link('internet-1', web, 'routes_to');
-    const s = steady([{ kind: 'instance_failure', atMin: 5, count: 1 }], 30, 40);
+    // A static site (no database queries) isolates the health-check behaviour.
+    const s = { ...steady([{ kind: 'instance_failure', atMin: 5, count: 1 }], 30, 40), queriesPerRequest: 0 };
     const direct = run(b.graph, s);
     const viaAlb = run(template(), s);
     // ALB stops routing to the failed instance after its health checks; direct exposure never does.

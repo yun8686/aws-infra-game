@@ -10,6 +10,9 @@ export interface MissionText {
   /** The customer's request, in their words. */
   readonly request: string;
   readonly situation: readonly string[];
+  /** What to do first; shown in the briefing. */
+  readonly firstStep: string;
+  /** Revealed one per failed attempt in the results (playtest: never all at once). */
   readonly hints: readonly string[];
   /** Label for the upcoming scheduled event on the project list. */
   readonly nextEvent?: string;
@@ -30,10 +33,12 @@ export const MISSION_TEXT_JA: { readonly [K in MissionId]: MissionText } = {
       'ピーク中にサーバー1台の障害が発生することがシナリオで予告されています。',
       '顧客データがあるため、データベースは削除できません（サイズ変更は可能）。',
     ],
+    firstStep:
+      'まずは何も変えずに「結果」タブでシミュレーションを実行し、どこで問題が起きるかを確かめましょう。',
     hints: [
-      'まず現在の構成のままシミュレーションを実行し、どこがボトルネックになるかを確認しましょう。',
-      'サーバーを増やすとデータベースへの接続数も増えます。',
-      'ピークのためだけに常に多くのサーバーを動かすと、コストが予算を超えます。',
+      '「監視」タブで、エラーが出始めた時刻にどのリソースが ⛔ になっているかを見ましょう。サーバーを増やすと、DB への接続数（台数 × プールサイズ）も増えます。',
+      'ピークの30分のためだけに常に多くのサーバーを動かすと、予算を超えます。負荷に合わせて台数を増減する Auto Scaling を検討しましょう。',
+      'Auto Scaling は追加後に「配置（サブネット、2つのAZが安心）」「セキュリティグループ」「ロードバランサーから」「データベースへ」の4つの接続が必要です。置き換えた後、元のサーバーは削除できます。',
     ],
     nextEvent: 'TV放映（アクセス約10倍）',
   },
@@ -48,6 +53,7 @@ export const MISSION_TEXT_JA: { readonly [K in MissionId]: MissionText } = {
       'インターネット（入口）だけがある状態から始まります。',
       'シナリオはTV放映のアクセス急増（障害あり）を使います。',
     ],
-    hints: ['VPC → サブネット → ロードバランサー → サーバー → データベースの順に作るとスムーズです。'],
+    firstStep: 'VPC → サブネット → ロードバランサー → サーバー → データベースの順に作るとスムーズです。',
+    hints: ['構成チェック（⛔ / ⚠ のボタン）を開くと、足りない接続や設定を確認できます。'],
   },
 };

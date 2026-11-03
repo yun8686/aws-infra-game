@@ -13,7 +13,7 @@ import { createPrng } from './prng';
 import { baseRpsAt, scenarioSchema, type Scenario } from './scenario';
 import type { CostSummary, NodeStepMetrics, SimulationResult, SimulationSummary, StepMetrics } from './types';
 
-export const ENGINE_VERSION = 2;
+export const ENGINE_VERSION = 3;
 
 export interface SimulationInput {
   readonly graph: InfrastructureGraph;
@@ -237,6 +237,17 @@ const runStep = (
       BALANCE.latency.albMs * sv.albFraction +
       BALANCE.latency.computeMs * queueFactor(sv.rho) +
       sv.waitSec * 1000;
+    if (g.model.dbLinks.length === 0 && scenario.queriesPerRequest > 0) {
+      // The application needs its database; a server that is not connected to one cannot answer.
+      addDbIssue({
+        cause: 'no_database',
+        nodeIds: [g.model.id],
+        connectionIds: [],
+        failedRps: remaining,
+        pressure: 1,
+      });
+      remaining = 0;
+    }
     for (const link of g.model.dbLinks) {
       if (remaining <= 0) break;
       if (!link.allowed) {

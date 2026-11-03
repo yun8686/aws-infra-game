@@ -51,6 +51,12 @@ function ProjectCard({ project }: { readonly project: Project }) {
               <dd>{project.lastRun.overallScore}</dd>
             </div>
           )}
+          {(project.attempts ?? 0) > 0 && (
+            <div>
+              <dt>挑戦回数</dt>
+              <dd>{project.attempts}回</dd>
+            </div>
+          )}
         </dl>
       </button>
       <button
