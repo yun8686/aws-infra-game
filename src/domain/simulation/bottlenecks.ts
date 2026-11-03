@@ -1,3 +1,4 @@
+import type { AppId } from '../catalog/apps';
 import type { ConnectionId, NodeId } from '../graph/types';
 import type { Bottleneck, BottleneckCause } from './types';
 
@@ -9,6 +10,8 @@ export interface StepIssue {
   /** Failed requests per second attributed to this cause in the step. */
   readonly failedRps: number;
   readonly pressure: number;
+  /** Applications whose requests this concerns (empty = node-level, e.g. high utilization). */
+  readonly appIds: readonly AppId[];
 }
 
 const CAUSE_ORDER: readonly BottleneckCause[] = [
@@ -39,7 +42,7 @@ export const aggregateBottlenecks = (
   const closed: Bottleneck[] = [];
   issuesByStep.forEach((issues, step) => {
     for (const issue of issues) {
-      const key = `${issue.cause}|${issue.nodeIds.join(',')}|${issue.connectionIds.join(',')}`;
+      const key = `${issue.cause}|${issue.nodeIds.join(',')}|${issue.connectionIds.join(',')}|${issue.appIds.join(',')}`;
       const current = open.get(key);
       const failed = issue.failedRps * stepSec;
       if (current && step - current.lastStep <= gapSteps + 1) {
@@ -58,6 +61,7 @@ export const aggregateBottlenecks = (
             cause: issue.cause,
             nodeIds: issue.nodeIds,
             connectionIds: issue.connectionIds,
+            appIds: issue.appIds,
             startMinute: (step * stepSec) / 60,
             endMinute: (step * stepSec) / 60,
             peak: issue.pressure,

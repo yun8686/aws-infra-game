@@ -31,6 +31,7 @@ const fakeSim = (over: {
     meanLatencyMs: 100,
     p95LatencyMs: over.p95 ?? 200,
     availability: over.availability ?? 1,
+    apps: {},
   },
 });
 
@@ -119,6 +120,7 @@ describe('groupBottlenecks', () => {
       cause,
       nodeIds: ['ec2-1'],
       connectionIds: [],
+      appIds: [],
       startMinute: start,
       endMinute: start + 5,
       peak: 1,

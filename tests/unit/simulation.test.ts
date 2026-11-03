@@ -198,6 +198,7 @@ describe('refusal and outputs', () => {
       connectionIds: [],
       failedRps: 0,
       pressure: 0.9,
+      appIds: [],
     };
     const merged = aggregateBottlenecks([[issue], [], [issue], [], [], [], [issue]], 60);
     expect(merged.map((b) => [b.startMinute, b.endMinute])).toEqual([

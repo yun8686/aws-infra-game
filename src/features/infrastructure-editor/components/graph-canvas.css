@@ -183,3 +183,9 @@
   stroke-linecap: round;
   opacity: 0.8;
 }
+
+.node-apps {
+  font-size: 10px;
+  font-weight: 700;
+  fill: var(--accent-compute);
+}

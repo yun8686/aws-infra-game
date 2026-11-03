@@ -1,3 +1,4 @@
+import type { AppId } from '../catalog/apps';
 import type { AvailabilityZone } from '../catalog/services';
 import type { NodeId } from '../graph/types';
 import { BALANCE } from './balance';
@@ -21,7 +22,8 @@ export interface GroupState {
   desired: number;
   lastScaleOutSec: number;
   lastScaleSec: number;
-  backlog: number;
+  /** Waiting requests per application. */
+  backlog: Map<AppId, number>;
 }
 
 export interface DbState {
@@ -59,7 +61,7 @@ export const createState = (model: ExecutionModel): SimState => {
       desired: m.autoScaling?.desired ?? m.initialInstances,
       lastScaleOutSec: -Infinity,
       lastScaleSec: -Infinity,
-      backlog: 0,
+      backlog: new Map(),
     });
   }
   const dbs = new Map<NodeId, DbState>();

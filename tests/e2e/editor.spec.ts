@@ -1,8 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
-const openArchitecture = async (page: Page, missionIndex = 0) => {
+const openArchitecture = async (page: Page, missionTitle = 'TV放映によるアクセス急増') => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'この案件を受注する' }).nth(missionIndex).click();
+  await page
+    .locator('.card', { hasText: missionTitle })
+    .getByRole('button', { name: 'この案件を受注する' })
+    .click();
   await page.getByRole('link', { name: /構成/ }).tap();
 };
 const sheet = (page: Page) => page.getByRole('dialog');
@@ -127,7 +130,7 @@ test('solve the TV spike mission with taps only (reference solution A)', async (
 });
 
 test('validation panel and outline view both lead to the resource', async ({ page }) => {
-  await openArchitecture(page, 1); // sandbox
+  await openArchitecture(page, 'サンドボックス');
   await page.getByRole('button', { name: /構成チェック/ }).tap();
   await expect(sheet(page)).toContainText('インターネットからサーバーへの経路がありません');
   await sheet(page)

@@ -49,6 +49,11 @@ export const LEARNING_TOPIC_TEXT_JA: { readonly [K in LearningTopic]: { title: s
     title: 'コスト最適化',
     summary: 'ピークに合わせて常に過剰な台数を持たず、必要なときだけ増やします。',
   },
+  workload_isolation: {
+    title: '負荷の分離',
+    summary:
+      '性質の違うアプリを同じサーバーで動かすと、片方のアクセス急増がもう片方を遅くします。サーバーを分けるか、十分な余裕を持たせましょう。',
+  },
   dependencies: {
     title: 'サービスの依存関係',
     summary: 'アプリが動くために必要なサービス（データベースなど）が、すべて接続されているかを確認します。',

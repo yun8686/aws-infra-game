@@ -21,7 +21,7 @@ describe('addNode', () => {
     const r2 = unwrap(addNode(r1.graph, { serviceType: 'compute.ec2' }));
     expect(r1.nodeId).toBe('ec2-1');
     expect(r2.nodeId).toBe('ec2-2');
-    expect(r2.graph.nodes['ec2-1']?.config).toEqual({ instanceSize: 'small' });
+    expect(r2.graph.nodes['ec2-1']?.config).toEqual({ instanceSize: 'small', apps: ['shop'] });
     expect(Object.keys(g0.nodes)).toHaveLength(0); // input is not mutated
   });
 
@@ -204,7 +204,7 @@ describe('duplicateNode ("launch another like this")', () => {
 describe('config, rename and disconnect', () => {
   it('validates config updates and respects read-only locks', () => {
     const s = buildWebStackFromBaseline();
-    const next = { instanceSize: 'large' };
+    const next = { instanceSize: 'large', apps: ['shop'] };
     const r = unwrap(updateNodeConfig(s.b.graph, s.web, next));
     expect(r.graph.nodes[s.web]?.config).toEqual(next);
     const bad = updateNodeConfig(s.b.graph, s.web, { instanceSize: 'gigantic' });

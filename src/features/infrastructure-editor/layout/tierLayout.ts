@@ -124,7 +124,13 @@ const packLanes = (items: readonly Item[]): number[] => {
   });
 };
 
-export const layoutGraph = (graph: InfrastructureGraph): GraphLayoutResult => {
+export interface LayoutOptions {
+  /** Room for one more text line per box (the apps line in multi-app missions). */
+  readonly extraLine?: boolean;
+}
+
+export const layoutGraph = (graph: InfrastructureGraph, options: LayoutOptions = {}): GraphLayoutResult => {
+  const nodeHeight = LAYOUT.nodeHeight + (options.extraLine ? 15 : 0);
   const L = LAYOUT;
   const subnets = nodesOfType(graph, 'network.subnet');
   const usedAzs = new Set<AvailabilityZone>();
@@ -209,14 +215,14 @@ export const layoutGraph = (graph: InfrastructureGraph): GraphLayoutResult => {
           partIndex,
           partCount: item.parts.length,
           x: x + inset,
-          y: top + (lanes[i] ?? 0) * (L.nodeHeight + L.rowGap),
+          y: top + (lanes[i] ?? 0) * (nodeHeight + L.rowGap),
           width: w - inset * 2,
-          height: L.nodeHeight,
+          height: nodeHeight,
           securityGroupIds: sgs,
         });
       });
     });
-    y = top + laneCount * (L.nodeHeight + L.rowGap) - L.rowGap;
+    y = top + laneCount * (nodeHeight + L.rowGap) - L.rowGap;
     return { top, bottom: y };
   };
 

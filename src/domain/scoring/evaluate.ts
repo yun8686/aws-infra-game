@@ -1,5 +1,6 @@
 import type { Dimension, Mission } from '../missions/mission';
-import type { Bottleneck, BottleneckCause, SimulationResult } from '../simulation/types';
+import type { AppId } from '../catalog/apps';
+import type { Bottleneck, BottleneckCause, SimulationResult, SimulationSummary } from '../simulation/types';
 import type { Finding } from '../validation/findings';
 
 /**
@@ -11,6 +12,8 @@ export type Metric =
 
 export interface Check {
   readonly metric: Metric;
+  /** Set when the check judges one application (multi-app missions). */
+  readonly appId?: AppId;
   readonly actual: number;
   readonly target: number;
   readonly comparator: '<=' | '>=';
@@ -34,13 +37,15 @@ export type LearningTopic =
   | 'multi_az'
   | 'security_groups'
   | 'cost_optimization'
-  | 'dependencies';
+  | 'dependencies'
+  | 'workload_isolation';
 
 /** A cause on specific resources, with every time window in which it failed requests. */
 export interface KeyBottleneck {
   readonly cause: BottleneckCause;
   readonly nodeIds: readonly string[];
   readonly connectionIds: readonly string[];
+  readonly appIds: readonly string[];
   readonly windows: readonly { readonly startMinute: number; readonly endMinute: number }[];
   readonly failedRequests: number;
   readonly peak: number;
@@ -51,7 +56,7 @@ export const groupBottlenecks = (bottlenecks: readonly Bottleneck[], limit = 3):
   const groups = new Map<string, KeyBottleneck>();
   for (const b of bottlenecks) {
     if (b.failedRequests <= 0) continue;
-    const key = `${b.cause}|${b.nodeIds.join()}|${b.connectionIds.join()}`;
+    const key = `${b.cause}|${b.nodeIds.join()}|${b.connectionIds.join()}|${b.appIds.join()}`;
     const prev = groups.get(key);
     const window = { startMinute: b.startMinute, endMinute: b.endMinute };
     groups.set(
@@ -67,6 +72,7 @@ export const groupBottlenecks = (bottlenecks: readonly Bottleneck[], limit = 3):
             cause: b.cause,
             nodeIds: b.nodeIds,
             connectionIds: b.connectionIds,
+            appIds: b.appIds,
             windows: [window],
             failedRequests: b.failedRequests,
             peak: b.peak,
@@ -129,6 +135,7 @@ const TOPIC_BY_CAUSE: Record<BottleneckCause, LearningTopic> = {
   no_healthy_targets: 'multi_az',
   sg_blocked: 'security_groups',
   no_database: 'dependencies',
+  no_app_target: 'dependencies',
 };
 
 export const evaluateMission = (mission: Mission, sim: SimulationResult): EvaluationResult => {
@@ -136,9 +143,28 @@ export const evaluateMission = (mission: Mission, sim: SimulationResult): Evalua
   const s = sim.summary;
   const S = SCORING;
 
-  const availCheck = check('availability', s.availability, '>=', o.minAvailability);
-  const errCheck = check('errorRate', s.errorRate, '<=', o.maxErrorRate);
-  const latCheck = check('p95LatencyMs', s.p95LatencyMs, '<=', o.maxP95LatencyMs);
+  // Single-app missions judge the totals; multi-app missions judge each app against its own objectives.
+  const targets: {
+    appId?: AppId;
+    summary: SimulationSummary;
+    o: { maxErrorRate: number; maxP95LatencyMs: number; minAvailability: number };
+  }[] = mission.appObjectives
+    ? (
+        Object.entries(mission.appObjectives) as [AppId, NonNullable<Mission['appObjectives']>[AppId]][]
+      ).flatMap(([appId, ao]) => {
+        const summary = s.apps[appId];
+        return summary && ao ? [{ appId, summary, o: ao }] : [];
+      })
+    : [{ summary: s, o }];
+  const withApp = (c: Check, appId?: AppId): Check => (appId ? { ...c, appId } : c);
+  const availChecks = targets.map((t) =>
+    withApp(check('availability', t.summary.availability, '>=', t.o.minAvailability), t.appId),
+  );
+  const perfChecks = targets.map((t) => ({
+    err: withApp(check('errorRate', t.summary.errorRate, '<=', t.o.maxErrorRate), t.appId),
+    lat: withApp(check('p95LatencyMs', t.summary.p95LatencyMs, '<=', t.o.maxP95LatencyMs), t.appId),
+    maxLatency: t.o.maxP95LatencyMs,
+  }));
   const costCheck = check('projectedMonthly', sim.cost.projectedMonthly, '<=', o.monthlyBudget);
 
   const securityFindings = sim.findings.filter((f) => f.category === 'security');
@@ -155,15 +181,17 @@ export const evaluateMission = (mission: Mission, sim: SimulationResult): Evalua
   const raw: DimensionResult[] = [
     {
       dimension: 'availability',
-      passed: availCheck.passed,
-      score: graded(availCheck, S.availabilitySpan),
-      checks: [availCheck],
+      passed: availChecks.every((c) => c.passed),
+      score: Math.min(...availChecks.map((c) => graded(c, S.availabilitySpan))),
+      checks: availChecks,
     },
     {
       dimension: 'performance',
-      passed: errCheck.passed && latCheck.passed,
-      score: Math.min(graded(errCheck, S.errorRateSpan), graded(latCheck, o.maxP95LatencyMs)),
-      checks: [errCheck, latCheck],
+      passed: perfChecks.every((p) => p.err.passed && p.lat.passed),
+      score: Math.min(
+        ...perfChecks.map((p) => Math.min(graded(p.err, S.errorRateSpan), graded(p.lat, p.maxLatency))),
+      ),
+      checks: perfChecks.flatMap((p) => [p.err, p.lat]),
     },
     { dimension: 'cost', passed: costCheck.passed, score: costScore, checks: [costCheck] },
     {
@@ -186,6 +214,17 @@ export const evaluateMission = (mission: Mission, sim: SimulationResult): Evalua
   const keyBottlenecks = groupBottlenecks(sim.bottlenecks);
   const topics = new Set<LearningTopic>(keyBottlenecks.map((b) => TOPIC_BY_CAUSE[b.cause]));
   if (!costCheck.passed) topics.add('cost_optimization');
+  // An app that missed its latency target while sharing servers with another app: a noisy neighbour.
+  const sharedApps = new Set<string>();
+  for (const step of sim.steps) {
+    for (const n of Object.values(step.nodes)) {
+      const apps = Object.keys(n.loadByApp ?? {});
+      if (apps.length > 1) for (const a of apps) sharedApps.add(a);
+    }
+  }
+  if (perfChecks.some((p) => !p.lat.passed && p.err.appId !== undefined && sharedApps.has(p.err.appId))) {
+    topics.add('workload_isolation');
+  }
   if (securityFindings.length > 0) topics.add('security_groups');
 
   return {

@@ -5,6 +5,7 @@ import { azsOf, securityGroupsOf, subnetsOf } from '../../domain/graph/network';
 import type { InfrastructureGraph, NodeId } from '../../domain/graph/types';
 import type { PartRole } from './layout/tierLayout';
 import { BALANCE } from '../../domain/simulation/balance';
+import { APP_TEXT_JA } from '../../data/i18n/ja/apps';
 
 /**
  * Plain-language summaries of a resource's key settings, so the diagram and the sheet show
@@ -64,10 +65,17 @@ const names = (graph: InfrastructureGraph, ids: readonly NodeId[]) =>
   ids.map((id) => graph.nodes[id]?.name ?? id).join('、');
 
 /** What the resource is connected to and how it is protected, as label/value lines. */
-export const describeNode = (graph: InfrastructureGraph, nodeId: NodeId): OverviewLine[] => {
+export const describeNode = (
+  graph: InfrastructureGraph,
+  nodeId: NodeId,
+  options: { readonly showApps?: boolean } = {},
+): OverviewLine[] => {
   const node = graph.nodes[nodeId];
   if (!node) return [];
   const out: OverviewLine[] = [];
+  const apps = readConfig(node, 'compute.ec2')?.apps ?? readConfig(node, 'compute.autoscaling')?.apps;
+  if (options.showApps && apps)
+    out.push({ label: 'アプリ', value: apps.map((a) => APP_TEXT_JA[a].name).join('、') });
 
   const subnets = subnetsOf(graph, nodeId);
   if (subnets.length > 0) {
@@ -210,4 +218,11 @@ export const relatedNodeIds = (graph: InfrastructureGraph, nodeId: NodeId): Set<
   if (node.serviceType === 'network.security_group')
     return new Set(sourcesOf(graph, nodeId, 'secured_by').map((n) => n.id));
   return new Set([...securityGroupsOf(graph, nodeId), ...subnetsOf(graph, nodeId)].map((n) => n.id));
+};
+
+/** Short apps line for a compute node, e.g. "ショップ・受注" (multi-app missions only). */
+export const appsLine = (graph: InfrastructureGraph, nodeId: NodeId): string => {
+  const node = graph.nodes[nodeId];
+  const apps = readConfig(node, 'compute.ec2')?.apps ?? readConfig(node, 'compute.autoscaling')?.apps;
+  return apps ? apps.map((a) => APP_TEXT_JA[a].short).join('・') : '';
 };

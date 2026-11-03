@@ -4,6 +4,8 @@ import type { InfrastructureGraph } from '../../../domain/graph/types';
 import { nodesOfType } from '../../../domain/graph/graph';
 import type { Finding } from '../../../domain/validation/findings';
 import { getIn, setIn, type FieldSpec } from '../config/fieldSpecs';
+import type { AppId } from '../../../domain/catalog/apps';
+import { APP_TEXT_JA } from '../../../data/i18n/ja/apps';
 
 export interface ConfigFormProps {
   readonly specs: readonly FieldSpec[];
@@ -12,6 +14,8 @@ export interface ConfigFormProps {
   readonly onCommit: (next: unknown) => readonly Finding[];
   readonly graph: InfrastructureGraph;
   readonly disabled?: boolean;
+  /** Applications the mission uses; the app field is hidden when there is only one. */
+  readonly availableApps?: readonly AppId[];
 }
 
 const REASON_JA: Record<string, string> = {
@@ -28,7 +32,7 @@ const describe = (f: Finding): string => {
  * Edits a config through a local draft. Valid drafts are committed immediately (one undo step each);
  * invalid drafts stay visible with an explanation instead of being silently reverted.
  */
-export function ConfigForm({ specs, value, onCommit, graph, disabled }: ConfigFormProps) {
+export function ConfigForm({ specs, value, onCommit, graph, disabled, availableApps = [] }: ConfigFormProps) {
   const [draft, setDraft] = useState<unknown>(undefined);
   const [errors, setErrors] = useState<readonly Finding[]>([]);
   const current = draft ?? value;
@@ -49,16 +53,19 @@ export function ConfigForm({ specs, value, onCommit, graph, disabled }: ConfigFo
 
   return (
     <div className="config-form">
-      {specs.map((spec) => (
-        <Field
-          key={spec.path.join('.')}
-          spec={spec}
-          value={getIn(current, spec.path)}
-          onChange={(v) => change(spec.path, v)}
-          graph={graph}
-          disabled={disabled}
-        />
-      ))}
+      {specs
+        .filter((spec) => spec.kind !== 'apps' || availableApps.length > 1)
+        .map((spec) => (
+          <Field
+            availableApps={availableApps}
+            key={spec.path.join('.')}
+            spec={spec}
+            value={getIn(current, spec.path)}
+            onChange={(v) => change(spec.path, v)}
+            graph={graph}
+            disabled={disabled}
+          />
+        ))}
       {errors.length > 0 && (
         <p className="field-error" role="alert">
           {errors.map(describe).join(' ')}（この変更はまだ反映されていません）
@@ -74,9 +81,10 @@ interface FieldProps {
   readonly onChange: (v: unknown) => void;
   readonly graph: InfrastructureGraph;
   readonly disabled?: boolean | undefined;
+  readonly availableApps: readonly AppId[];
 }
 
-function Field({ spec, value, onChange, graph, disabled }: FieldProps) {
+function Field({ spec, value, onChange, graph, disabled, availableApps }: FieldProps) {
   const id = useId();
   const help = 'help' in spec && spec.help ? <small className="field-help">{spec.help}</small> : null;
   switch (spec.kind) {
@@ -171,6 +179,36 @@ function Field({ spec, value, onChange, graph, disabled }: FieldProps) {
       return <SgRulesField spec={spec} value={value} onChange={onChange} graph={graph} disabled={disabled} />;
     case 'alarms':
       return <AlarmsField spec={spec} value={value} onChange={onChange} disabled={disabled} />;
+    case 'apps': {
+      const selected = (Array.isArray(value) ? value : []) as AppId[];
+      return (
+        <fieldset className="field rules" disabled={disabled}>
+          <legend>{spec.label}</legend>
+          {availableApps.map((app) => {
+            const checked = selected.includes(app);
+            const last = checked && selected.length === 1;
+            return (
+              <label key={app} className="check-row">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  disabled={last}
+                  onChange={(e) =>
+                    onChange(
+                      e.target.checked
+                        ? availableApps.filter((a) => a === app || selected.includes(a))
+                        : selected.filter((a) => a !== app),
+                    )
+                  }
+                />
+                {APP_TEXT_JA[app].name}
+              </label>
+            );
+          })}
+          {help}
+        </fieldset>
+      );
+    }
   }
 }
 

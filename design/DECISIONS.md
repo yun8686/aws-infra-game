@@ -115,3 +115,16 @@ Status: Accepted (2026-11-03). Supersedes the EC2 part of ADR 0011.
 Playtest feedback: a configurable instance count and placement in several subnets do not exist for a real EC2 instance and made the configuration hard to understand. An EC2 node now represents exactly one instance: its only setting is the instance size and it is placed in exactly one subnet. More fixed servers are separate EC2 nodes, created quickly with "同じ設定でもう1台" (copies size, security groups, load-balancer and database connections; the player chooses the subnet). Changing the number of instances automatically is the job of Auto Scaling.
 
 Consequences: the e-commerce template has two EC2 nodes (web-1, web-2) in the same AZ; monitoring summarises all EC2 instances as one series; saves made before this change lose the old instance count and EC2 nodes placed in several subnets show a placement error (prototype saves are not migrated).
+
+## 0016 — Applications on servers: co-locate or separate
+
+Status: Accepted (2026-11-03)
+
+Playtest feedback: choosing which application a server runs creates a real design decision when a customer runs two applications — share servers (cheaper) or separate them (isolation, more servers).
+
+- A small application catalog (`shop`, `orders`). EC2 and Auto Scaling configs have `apps` (at least one; older configs default to `shop`).
+- Scenarios may define several apps, each with its own traffic, queries per request and CPU cost per request. Single-app scenarios are the shop with the top-level workload, so mission 1 behaves exactly as before.
+- Load balancers send each app's requests only to servers that run it; an app no reachable server runs fails (`no_app_target`) and validation warns (`dependency.app_not_served`).
+- Server capacity is counted in CPU units (one shop request = 1). Apps on the same server compete for it, so a surge of one app slows or drops the other (noisy neighbour). Auto Scaling scales on CPU units.
+- Missions may set availability and performance objectives per app (`appObjectives`); the budget and security stay project-wide. A latency miss on a shared server adds the learning topic "負荷の分離".
+- Mission 2 (ショップと受注管理の同居) is added; mission 1 stays single-app as the introduction. The UI shows the app choice only when a mission has more than one app.

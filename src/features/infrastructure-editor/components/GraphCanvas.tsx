@@ -3,7 +3,7 @@ import type { ConnectionId, InfrastructureGraph, NodeId } from '../../../domain/
 import { SERVICE_TEXT_JA } from '../../../data/i18n/ja/services';
 import { isServiceTypeId } from '../../../domain/catalog/ids';
 import { layoutGraph } from '../layout/tierLayout';
-import { partSummary } from '../summary';
+import { appsLine, partSummary } from '../summary';
 import './graph-canvas.css';
 
 export type Highlight = 'valid' | 'invalid';
@@ -25,6 +25,8 @@ export interface GraphCanvasProps {
   readonly metrics?: Readonly<Record<NodeId, NodeMetricBadge>> | undefined;
   /** Resources related to the selection (its security groups and subnets), lightly emphasised. */
   readonly related?: ReadonlySet<NodeId> | undefined;
+  /** Multi-app missions: show which apps each server runs. */
+  readonly showApps?: boolean | undefined;
 }
 
 export interface NodeMetricBadge {
@@ -53,8 +55,9 @@ export function GraphCanvas({
   zoom = 1,
   metrics,
   related,
+  showApps = false,
 }: GraphCanvasProps) {
-  const layout = useMemo(() => layoutGraph(graph), [graph]);
+  const layout = useMemo(() => layoutGraph(graph, { extraLine: showApps }), [graph, showApps]);
 
   const select = (id: NodeId) => onSelect?.(id);
   const stateClass = (id: NodeId) =>
@@ -167,6 +170,7 @@ export function GraphCanvas({
           const issue = issues?.[n.id];
           const metric = metrics?.[n.id];
           const summary = partSummary(graph, n.id, n);
+          const appsText = showApps ? appsLine(graph, n.id) : '';
           // The accessible name comes from the visible "TYPE name summary" text; extra state is a description.
           const extra = [
             metric ? `${LEVEL_TEXT[metric.level]} ${metric.text}` : '',
@@ -203,6 +207,14 @@ export function GraphCanvas({
                     {' '}
                     <tspan className="node-summary" x={n.x + 8} dy={17}>
                       {summary}
+                    </tspan>
+                  </>
+                )}
+                {appsText && (
+                  <>
+                    {' '}
+                    <tspan className="node-apps" x={n.x + 8} dy={15}>
+                      {appsText}
                     </tspan>
                   </>
                 )}

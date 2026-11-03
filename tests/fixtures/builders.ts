@@ -93,7 +93,7 @@ export const buildWebStackFromBaseline = (): WebStack => {
   b.link(alb, sgAlb, 'secured_by');
 
   const server = (name: string) => {
-    const id = b.add('compute.ec2', { instanceSize: 'small' }, name);
+    const id = b.add('compute.ec2', { instanceSize: 'small', apps: ['shop'] }, name);
     b.link(id, privA, 'placed_in');
     b.link(id, sgWeb, 'secured_by');
     return id;

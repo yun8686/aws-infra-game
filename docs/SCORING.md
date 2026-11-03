@@ -57,3 +57,19 @@ Calibration (verified by `tests/integration/missions.test.ts`):
 | Reference A + DB port open to anywhere | Fails security |
 | 12 EC2 instances with their database links removed (playtest exploit, fixed in engine 3) | Fails (`no_database`) |
 | Reference A with the default warm-up (180 s) | Narrowly fails availability (scale-out too slow for the ramp) — an intended iteration step |
+
+## Mission 2: ショップと受注管理の同居 (`two-apps`)
+
+- Start: `ecommerce-two-apps` — the mission 1 starter, with both EC2 instances running the shop and order management.
+- Scenario: `tv-spike-two-apps`, seed 11. Shop: the TV spike (50 → 500 rps). Order management: 10 rps steady, 3× CPU per request, 3 queries per request. One instance fails at minute 55.
+- Objectives per app: shop — error rate ≤ 1%, p95 ≤ 400 ms, availability ≥ 97%; order management — error rate ≤ 1%, **p95 ≤ 300 ms**, availability ≥ 98%. Budget ≤ 16,000 cr (whole project). Availability and performance dimensions take the worst app.
+
+Calibration (verified by `tests/integration/mission-two-apps.test.ts`):
+
+| Architecture | Result |
+|---|---|
+| Template as is | Fails both apps |
+| Shop on Auto Scaling small 2–14 @60%; orders on two small EC2 in different AZs; db.large | **Passes** (~13,150 cr) |
+| Both apps on one Auto Scaling group small 2–16 @60%; db.large | Fails order-management latency (noisy neighbour) → learning topic 負荷の分離 |
+| Both apps on one group with headroom (min 3, max 20, @40%); db.large | Passes (~12,400 cr) — a tuned alternative |
+| 14 shared fixed EC2 + db.large | Fails the budget |

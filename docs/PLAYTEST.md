@@ -107,4 +107,6 @@ A scripted novice walkthrough and an exploit search were run before involving pe
 
 | 4 | EC2 の設定が分かりにくい。EC2 を複数サブネットに配置することは実際には発生しないし、EC2 の台数を増減させることも実際にはできない | ADR 0015: an EC2 node is one instance in one subnet with only a size setting; "同じ設定でもう1台" launches another (copies settings and connections, then asks for the subnet); automatic count changes are Auto Scaling only; monitoring summarises EC2 instances; template uses web-1/web-2. Mission calibration unchanged (reference-solution tests pass) |
 
+| 5 | EC2 で動かすアプリを選択できたほうが良い。1つの案件で2種類のアプリを動かし、同じサーバーにするか分けるかの判断を求められる | ADR 0016: servers choose apps; apps share CPU on a server; per-app routing, metrics and objectives; mission 2 (ショップと受注管理の同居) where naive co-location fails order-management latency, separation passes, generous headroom is a tuned alternative |
+
 Open questions for human players: whether the four-connection Auto Scaling setup is discoverable without hint 3, whether "availability" (share of minutes with ≤ 5% errors) is understood, and whether 180 s default warm-up feels fair.

@@ -53,6 +53,12 @@ export const BOTTLENECK_TEXT_JA: { readonly [K in BottleneckCause]: FindingText 
     explanation: 'データベースの障害または AZ 障害で、データベースを使うリクエストがすべて失敗しました。',
     remediation: 'Multi-AZ を有効にすると、短時間のフェイルオーバーで復旧できます。',
   },
+  no_app_target: {
+    message: 'このアプリを動かしているサーバーがありません',
+    explanation:
+      'リクエストを受けるロードバランサーの先に、このアプリを動かすサーバーが1台もないため、すべて失敗しました。',
+    remediation: 'サーバー（EC2 / Auto Scaling）の「動かすアプリ」で、このアプリを選んでください。',
+  },
   no_database: {
     message: 'サーバーがデータベースに接続されていません',
     explanation:

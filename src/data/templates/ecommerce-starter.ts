@@ -62,8 +62,18 @@ export const ecommerceStarterTemplate: unknown = {
         healthCheck: { intervalSec: 30, unhealthyThreshold: 3 },
       },
     },
-    'ec2-1': { id: 'ec2-1', serviceType: 'compute.ec2', name: 'web-1', config: { instanceSize: 'small' } },
-    'ec2-2': { id: 'ec2-2', serviceType: 'compute.ec2', name: 'web-2', config: { instanceSize: 'small' } },
+    'ec2-1': {
+      id: 'ec2-1',
+      serviceType: 'compute.ec2',
+      name: 'web-1',
+      config: { instanceSize: 'small', apps: ['shop'] },
+    },
+    'ec2-2': {
+      id: 'ec2-2',
+      serviceType: 'compute.ec2',
+      name: 'web-2',
+      config: { instanceSize: 'small', apps: ['shop'] },
+    },
     'rds-1': {
       id: 'rds-1',
       serviceType: 'database.rds',

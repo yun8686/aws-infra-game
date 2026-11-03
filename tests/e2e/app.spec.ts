@@ -52,7 +52,10 @@ test('projects persist across reloads and can be deleted', async ({ page }) => {
 
 test('the sandbox starts empty and explains why it cannot run yet', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'この案件を受注する' }).nth(1).click();
+  await page
+    .locator('.card', { hasText: 'サンドボックス' })
+    .getByRole('button', { name: 'この案件を受注する' })
+    .click();
   await page.getByRole('link', { name: /結果/ }).tap();
   await page.getByRole('button', { name: /シミュレーションを実行/ }).tap();
   await expect(page.getByRole('alert')).toContainText('インターネットからサーバーへの経路がありません');

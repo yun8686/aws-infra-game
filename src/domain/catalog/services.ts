@@ -1,6 +1,14 @@
 import { z } from 'zod';
+import { APP_IDS, DEFAULT_APP } from './apps';
 import { PORTS, type ServiceTypeId } from './ids';
 import type { ServiceDefinition } from './types';
+
+const appsSchema = z
+  .array(z.enum(APP_IDS))
+  .min(1)
+  .max(APP_IDS.length)
+  .refine((a) => new Set(a).size === a.length, 'duplicate_app')
+  .default([DEFAULT_APP]);
 
 const cidr = z.string().regex(/^(\d{1,3})(\.\d{1,3}){3}\/(\d|[12]\d|3[0-2])$/, 'invalid_cidr');
 
@@ -42,6 +50,8 @@ export const albConfigSchema = z.object({
 /** One EC2 instance (ADR 0015): a size, one subnet. More servers = more EC2 nodes or Auto Scaling. */
 export const ec2ConfigSchema = z.object({
   instanceSize: z.enum(INSTANCE_SIZES),
+  /** Applications running on this server (ADR 0016). Older configs default to the shop. */
+  apps: appsSchema,
 });
 
 export const autoScalingConfigSchema = z
@@ -52,6 +62,7 @@ export const autoScalingConfigSchema = z
     maxCapacity: z.int().min(1).max(50),
     targetCpuPct: z.int().min(10).max(90),
     warmupSec: z.int().min(0).max(900),
+    apps: appsSchema,
   })
   .refine((c) => c.minCapacity <= c.desiredCapacity && c.desiredCapacity <= c.maxCapacity, {
     message: 'capacity_order',
@@ -167,7 +178,7 @@ export const SERVICE_DEFINITIONS: ServiceDefinitions = {
     idPrefix: 'ec2',
     iconKey: 'server',
     configSchema: ec2ConfigSchema,
-    defaultConfig: { instanceSize: 'small' },
+    defaultConfig: { instanceSize: 'small', apps: ['shop'] },
     // A single instance lives in exactly one subnet.
     placement: { targets: ['network.subnet'], min: 1, max: 1 },
     simModel: 'computeFixed',
@@ -187,6 +198,7 @@ export const SERVICE_DEFINITIONS: ServiceDefinitions = {
       maxCapacity: 6,
       targetCpuPct: 60,
       warmupSec: 180,
+      apps: ['shop'],
     },
     placement: { targets: ['network.subnet'], min: 1, max: 3 },
     simModel: 'computeAutoScaling',

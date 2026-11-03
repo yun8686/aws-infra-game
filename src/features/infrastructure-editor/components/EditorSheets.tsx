@@ -20,6 +20,7 @@ import { BottomSheet } from '../../../shared/ui/BottomSheet';
 import { CONNECTION_FIELDS, SERVICE_FIELDS } from '../config/fieldSpecs';
 import { ConfigForm } from './ConfigForm';
 import type { OverviewLine } from '../summary';
+import type { AppId } from '../../../domain/catalog/apps';
 
 export const findingMessage = (f: Finding): string =>
   formatFindingText(FINDING_TEXT_JA[f.code].message, f.params);
@@ -48,6 +49,7 @@ export function NodeSheet(props: {
   readonly nodeId: NodeId;
   readonly findings: readonly Finding[];
   readonly overview: readonly OverviewLine[];
+  readonly availableApps: readonly AppId[];
   readonly deleteBlockedBy: Finding | undefined;
   readonly configLocked: boolean;
   readonly onClose: () => void;
@@ -128,6 +130,7 @@ export function NodeSheet(props: {
           value={node.config}
           graph={graph}
           disabled={props.configLocked}
+          availableApps={props.availableApps}
           onCommit={props.onCommitConfig}
         />
       )}

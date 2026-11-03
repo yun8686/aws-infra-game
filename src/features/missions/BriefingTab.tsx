@@ -6,6 +6,7 @@ import { MISSIONS, type MissionId } from '../../data/missions';
 import { SCENARIOS, type ScenarioId } from '../../data/scenarios';
 import { credits, ms, percent } from '../../shared/ui/format';
 import { WorkloadChart } from './WorkloadChart';
+import { appName } from '../../data/i18n/ja/apps';
 import { GuideCard } from '../../shared/ui/GuideCard';
 
 export function BriefingTab({ projectId }: { readonly projectId: string }) {
@@ -48,19 +49,47 @@ export function BriefingTab({ projectId }: { readonly projectId: string }) {
 
       <section className="card card-body">
         <h3>達成条件</h3>
+        {mission.appObjectives ? (
+          <div className="table-scroll">
+            <table className="objective-table">
+              <thead>
+                <tr>
+                  <th scope="col">アプリ</th>
+                  <th scope="col">エラー率</th>
+                  <th scope="col">応答時間（p95）</th>
+                  <th scope="col">可用性</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(mission.appObjectives).map(([app, ao]) => (
+                  <tr key={app}>
+                    <th scope="row">{appName(app)}</th>
+                    <td>{percent(ao.maxErrorRate)} 以下</td>
+                    <td>{ms(ao.maxP95LatencyMs)} 以下</td>
+                    <td>{percent(ao.minAvailability, 0)} 以上</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
         <dl className="objective-list">
-          <div>
-            <dt>エラー率</dt>
-            <dd>{percent(o.maxErrorRate)} 以下</dd>
-          </div>
-          <div>
-            <dt>応答時間（p95）</dt>
-            <dd>{ms(o.maxP95LatencyMs)} 以下</dd>
-          </div>
-          <div>
-            <dt>可用性</dt>
-            <dd>{percent(o.minAvailability, 0)} 以上</dd>
-          </div>
+          {!mission.appObjectives && (
+            <>
+              <div>
+                <dt>エラー率</dt>
+                <dd>{percent(o.maxErrorRate)} 以下</dd>
+              </div>
+              <div>
+                <dt>応答時間（p95）</dt>
+                <dd>{ms(o.maxP95LatencyMs)} 以下</dd>
+              </div>
+              <div>
+                <dt>可用性</dt>
+                <dd>{percent(o.minAvailability, 0)} 以上</dd>
+              </div>
+            </>
+          )}
           <div>
             <dt>月額予算</dt>
             <dd>{credits(o.monthlyBudget)} 以下</dd>

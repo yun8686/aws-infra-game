@@ -21,7 +21,7 @@ describe('Japanese bottleneck text', () => {
     for (const t of Object.values(BOTTLENECK_TEXT_JA)) {
       expect(t.message && t.explanation && t.remediation).toBeTruthy();
     }
-    expect(Object.keys(BOTTLENECK_TEXT_JA)).toHaveLength(11);
+    expect(Object.keys(BOTTLENECK_TEXT_JA)).toHaveLength(12);
   });
 });
 

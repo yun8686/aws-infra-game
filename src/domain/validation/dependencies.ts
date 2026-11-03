@@ -1,3 +1,4 @@
+import type { AppId } from '../catalog/apps';
 import { getServiceDefinition, readConfig } from '../catalog/catalog';
 import { COMPUTE_TYPES, SECURABLE_TYPES, SERVICE_TYPES } from '../catalog/ids';
 import { incoming, listNodes, nodesOfType, outgoing, sourcesOf } from '../graph/graph';
@@ -144,4 +145,22 @@ export const dependencyFindings = (graph: InfrastructureGraph): Finding[] => {
     }
   }
   return out;
+};
+
+/** Each required application must run on at least one server that receives requests. */
+export const appCoverageFindings = (
+  graph: InfrastructureGraph,
+  requiredApps: readonly AppId[],
+): Finding[] => {
+  if (requiredApps.length === 0) return [];
+  const reachable = reachableFromInternet(graph);
+  const served = new Set<AppId>();
+  for (const node of nodesOfType(graph, ...COMPUTE_TYPES)) {
+    if (!reachable.has(node.id)) continue;
+    const apps = readConfig(node, 'compute.ec2')?.apps ?? readConfig(node, 'compute.autoscaling')?.apps ?? [];
+    for (const a of apps) served.add(a);
+  }
+  return requiredApps
+    .filter((app) => !served.has(app))
+    .map((app) => finding('dependency.app_not_served', 'warning', 'dependency', {}, { params: { app } }));
 };

@@ -340,3 +340,15 @@ fieldset.rules {
 .duplicate-row .secondary-button {
   align-self: flex-start;
 }
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 15px;
+}
+.check-row input {
+  width: 24px;
+  height: 24px;
+}

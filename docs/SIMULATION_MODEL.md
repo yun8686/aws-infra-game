@@ -1,6 +1,6 @@
 # Simulation Model
 
-Version: engine 3 / balance 2
+Version: engine 4 / balance 2
 Status: Phase 3 (failure events, health checks, Auto Scaling dynamics, Multi-AZ failover).
 
 > All numbers are **game-balance assumptions** chosen for teaching. They are not AWS capacity, latency or pricing figures.
@@ -27,6 +27,12 @@ Failure events are part of the scenario and are **disclosed** to the player. Whe
 ## Workload
 
 A scenario defines `(minute, rps)` points; traffic is linearly interpolated between them and multiplied by `1 + noise × (2u − 1)` where `u` is the seeded random draw for the step. Each request issues `queriesPerRequest` database queries for every database the serving compute node is connected to.
+
+## Applications (engine 4, ADR 0016)
+
+A scenario may define several applications. Each has its own workload, `queriesPerRequest` and `cpuPerRequest` (CPU units per request; a shop request is 1). A single-app scenario is the `shop` app with the top-level workload and `cpuPerRequest = 1`, which reproduces engine 3 exactly. One noise draw is made per app per step, in scenario order.
+
+Servers run the apps listed in their config. Routing happens per app: the Internet splits an app's traffic over the entry routes that lead to a server running it, and a load balancer sends it only to targets running it (`no_app_target` when none). On a server, all apps share capacity measured in CPU units; when demand exceeds capacity, every app is served the same fraction, and the backlog and dropped requests are shared in proportion. Compute latency is `computeMs × cpuPerRequest × q(ρ)`, so heavy requests on a busy shared server slow down the most. Results include per-app step metrics and summaries, and bottlenecks name the affected apps.
 
 ## Request flow per step
 

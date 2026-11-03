@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '../../app/AppContext';
 import { navigate } from '../../app/router';
 import { isRunStale } from '../../app/store/projectStore';
-import { MISSIONS, type MissionId } from '../../data/missions';
+import { MISSIONS, missionAppIds, type MissionId } from '../../data/missions';
+import { appName } from '../../data/i18n/ja/apps';
 import { SCENARIO_EVENT_KINDS, TIMELINE_TEXT_JA } from '../../data/i18n/ja/timeline';
 import { GraphCanvas } from '../infrastructure-editor/components/GraphCanvas';
 import { nodeLabel } from '../infrastructure-editor/components/EditorSheets';
@@ -67,6 +68,8 @@ export function MonitorTab({ projectId }: { readonly projectId: string }) {
   const [playing, setPlaying] = useState(false);
 
   const sim = run?.simulation;
+  const apps = useMemo(() => missionAppIds(missionId ?? ''), [missionId]);
+  const multiApp = apps.length > 1;
   const last = (sim?.steps.length ?? 1) - 1;
 
   useEffect(() => {
@@ -96,16 +99,38 @@ export function MonitorTab({ projectId }: { readonly projectId: string }) {
         values: pick(sim.steps, (s) => f(id, s)),
       }));
     return {
-      requests: [
-        { id: 'offered', label: '受信', color: COLORS[0], values: pick(sim.steps, (s) => s.offeredRps) },
-        { id: 'success', label: '成功', color: COLORS[2], values: pick(sim.steps, (s) => s.successRps) },
-      ] as Series[],
-      errorRate: [
-        { id: 'err', label: 'エラー率', color: COLORS[0], values: pick(sim.steps, (s) => s.errorRate) },
-      ] as Series[],
-      latency: [
-        { id: 'lat', label: '応答時間', color: COLORS[0], values: pick(sim.steps, (s) => s.latencyMs) },
-      ] as Series[],
+      // Multi-app missions: one series per application (ADR 0016).
+      requests: (multiApp
+        ? apps.map((app, i) => ({
+            id: app,
+            label: `${appName(app)}（受信）`,
+            color: COLORS[i] as string,
+            values: pick(sim.steps, (s) => s.apps[app]?.offeredRps ?? 0),
+          }))
+        : [
+            { id: 'offered', label: '受信', color: COLORS[0], values: pick(sim.steps, (s) => s.offeredRps) },
+            { id: 'success', label: '成功', color: COLORS[2], values: pick(sim.steps, (s) => s.successRps) },
+          ]) as Series[],
+      errorRate: (multiApp
+        ? apps.map((app, i) => ({
+            id: app,
+            label: appName(app),
+            color: COLORS[i] as string,
+            values: pick(sim.steps, (s) => s.apps[app]?.errorRate ?? 0),
+          }))
+        : [
+            { id: 'err', label: 'エラー率', color: COLORS[0], values: pick(sim.steps, (s) => s.errorRate) },
+          ]) as Series[],
+      latency: (multiApp
+        ? apps.map((app, i) => ({
+            id: app,
+            label: appName(app),
+            color: COLORS[i] as string,
+            values: pick(sim.steps, (s) => s.apps[app]?.latencyMs ?? 0),
+          }))
+        : [
+            { id: 'lat', label: '応答時間', color: COLORS[0], values: pick(sim.steps, (s) => s.latencyMs) },
+          ]) as Series[],
       // EC2 instances are summarised as one series; each Auto Scaling group gets its own (max 3 series).
       cpu: [
         ...(ec2s.length > 0
@@ -153,7 +178,7 @@ export function MonitorTab({ projectId }: { readonly projectId: string }) {
       truncated:
         autoScalingNodeIds(graph).length > MAX_SERIES - 1 || databaseNodeIds(graph).length > MAX_SERIES,
     };
-  }, [sim, graph]);
+  }, [sim, graph, apps, multiApp]);
 
   if (!graph) return null;
   if (!run || !sim || !data) {
@@ -165,6 +190,21 @@ export function MonitorTab({ projectId }: { readonly projectId: string }) {
   }
 
   const objectives = missionId ? MISSIONS[missionId].objectives : undefined;
+  const appObjectives = missionId ? MISSIONS[missionId].appObjectives : undefined;
+  // The strictest app's latency target, named, so the line is never ambiguous.
+  const strictest = appObjectives
+    ? (Object.entries(appObjectives) as [string, { maxP95LatencyMs: number }][]).sort(
+        (a, b) => a[1].maxP95LatencyMs - b[1].maxP95LatencyMs,
+      )[0]
+    : undefined;
+  const latencyTarget = strictest
+    ? {
+        value: strictest[1].maxP95LatencyMs,
+        label: `${appName(strictest[0])}の目標(p95) ${strictest[1].maxP95LatencyMs}ms`,
+      }
+    : objectives
+      ? { value: objectives.maxP95LatencyMs, label: `目標(p95) ${objectives.maxP95LatencyMs}ms` }
+      : undefined;
   const step = sim.steps[minute];
   const scrub = (m: number) => {
     setPlaying(false);
@@ -234,6 +274,7 @@ export function MonitorTab({ projectId }: { readonly projectId: string }) {
         <GraphCanvas
           graph={graph}
           metrics={badges}
+          showApps={multiApp}
           onSelect={(id) =>
             id && navigate({ name: 'project', id: projectId, tab: 'architecture', focus: id })
           }
@@ -316,11 +357,7 @@ export function MonitorTab({ projectId }: { readonly projectId: string }) {
         minute={minute}
         onScrub={scrub}
         eventMinutes={eventMinutes}
-        threshold={
-          objectives
-            ? { value: objectives.maxP95LatencyMs, label: `目標(p95) ${objectives.maxP95LatencyMs}ms` }
-            : undefined
-        }
+        threshold={latencyTarget}
       />
       {data.cpu.length > 0 && (
         <TimeSeriesChart

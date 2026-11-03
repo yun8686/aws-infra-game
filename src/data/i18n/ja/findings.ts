@@ -1,3 +1,4 @@
+import { appName } from './apps';
 import type { FindingCode } from '../../../domain/validation/findings';
 
 export interface FindingText {
@@ -159,6 +160,11 @@ export const FINDING_TEXT_JA: { readonly [K in FindingCode]: FindingText } = {
     remediation:
       '別のAZのサブネットにもサーバーを置くと、AZ障害に強くなります（EC2 は「同じ設定でもう1台」、Auto Scaling は配置先の追加）。',
   },
+  'dependency.app_not_served': {
+    message: '「{app}」を動かしているサーバーがありません',
+    explanation: 'このアプリへのリクエストを受けられるサーバーがないため、すべて失敗します。',
+    remediation: 'サーバー（EC2 / Auto Scaling）の「動かすアプリ」で選んでください。',
+  },
   'dependency.compute_without_database': {
     message: 'このサーバーはデータベースに接続されていません',
     explanation:
@@ -221,4 +227,6 @@ export const formatFindingText = (
   template: string,
   params: Readonly<Record<string, string | number>> = {},
 ): string =>
-  template.replace(/\{(\w+)\}/g, (whole, key: string) => (key in params ? String(params[key]) : whole));
+  template.replace(/\{(\w+)\}/g, (whole, key: string) =>
+    key in params ? (key === 'app' ? appName(String(params[key])) : String(params[key])) : whole,
+  );

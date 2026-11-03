@@ -9,6 +9,8 @@ import type { Finding } from '../../domain/validation/findings';
 import { credits, ms, percent } from '../../shared/ui/format';
 import { nodeLabel } from '../infrastructure-editor/components/EditorSheets';
 import { StaleNotice } from '../monitoring/MonitorTab';
+import { appName } from '../../data/i18n/ja/apps';
+import { missionAppIds } from '../../data/missions';
 import { MISSION_TEXT_JA } from '../../data/i18n/ja/missions';
 import type { MissionId } from '../../data/missions';
 import { revealedHintCount } from '../../domain/projects/project';
@@ -46,6 +48,7 @@ export function ResultsTab({ projectId }: { readonly projectId: string }) {
       !r.ok && r.error.kind === 'invalid_graph' ? r.error.findings.filter((f) => f.severity === 'error') : [],
     );
   };
+  const multiApp = missionAppIds(project.missionId).length > 1;
   const e = run?.evaluation;
   const s = run?.simulation;
   const graph = project.graph;
@@ -94,7 +97,8 @@ export function ResultsTab({ projectId }: { readonly projectId: string }) {
                   <span className="dimension-score">{d.score}点</span>
                   <span className="dimension-checks">
                     {d.checks.map((c) => (
-                      <span key={c.metric}>
+                      <span key={`${c.appId ?? ''}${c.metric}`}>
+                        {c.appId ? `${appName(c.appId)}：` : ''}
                         {METRIC_TEXT_JA[c.metric]}: <strong>{formatCheck(c)}</strong>（目標 {formatTarget(c)}
                         ）
                       </span>
@@ -116,6 +120,9 @@ export function ResultsTab({ projectId }: { readonly projectId: string }) {
                     <li key={i}>
                       <strong>{t.message}</strong>
                       <div className="muted">
+                        {b.appIds.length > 0 && multiApp
+                          ? `${b.appIds.map(appName).join('・')}への影響 ・ `
+                          : ''}
                         {b.nodeIds.map((id) => nodeLabel(graph, id)).join('、')} ・{' '}
                         {b.windows
                           .map((w) =>

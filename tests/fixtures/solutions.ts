@@ -1,6 +1,7 @@
 import {
   addNode,
   connect,
+  disconnect,
   duplicateNode,
   removeNode,
   updateNodeConfig,
@@ -114,3 +115,95 @@ export const solutionB = (template: InfrastructureGraph, policy: EditPolicy = {}
 /** Meets the SLOs with static over-provisioning, but costs more than the budget allows. */
 export const overProvisioned = (template: InfrastructureGraph) =>
   setConfig(setWebServers(template, 12), 'rds-1', { instanceClass: 'db.large' });
+
+/** Move a single-subnet resource (an EC2 instance) to another subnet. */
+export const moveToSubnet = (
+  g: InfrastructureGraph,
+  nodeId: string,
+  subnet: string,
+  policy: EditPolicy = {},
+) => {
+  const placement = Object.values(g.connections).find(
+    (c) => c.sourceNodeId === nodeId && c.connectionType === 'placed_in',
+  );
+  if (!placement) throw new Error(`${nodeId} is not placed`);
+  const detached = unwrap(disconnect(g, placement.id, policy)).graph;
+  return unwrap(
+    connect(detached, { sourceNodeId: nodeId, targetNodeId: subnet, connectionType: 'placed_in' }, policy),
+  ).graph;
+};
+
+/** Add an Auto Scaling group across both private subnets, behind the ALB and connected to the DB. */
+export const addAutoScaling = (
+  g: InfrastructureGraph,
+  config: Record<string, unknown>,
+  policy: EditPolicy = {},
+) => {
+  const added = unwrap(
+    addNode(g, { serviceType: 'compute.autoscaling', config: { ...ASG_SMALL, ...config } }, policy),
+  );
+  let graph = added.graph;
+  for (const [target, type] of [
+    ['subnet-3', 'placed_in'],
+    ['subnet-4', 'placed_in'],
+    ['sg-2', 'secured_by'],
+  ] as const) {
+    graph = unwrap(
+      connect(graph, { sourceNodeId: added.nodeId, targetNodeId: target, connectionType: type }, policy),
+    ).graph;
+  }
+  graph = unwrap(
+    connect(
+      graph,
+      { sourceNodeId: 'alb-1', targetNodeId: added.nodeId, connectionType: 'routes_to' },
+      policy,
+    ),
+  ).graph;
+  graph = unwrap(
+    connect(
+      graph,
+      { sourceNodeId: added.nodeId, targetNodeId: 'rds-1', connectionType: 'data_access' },
+      policy,
+    ),
+  ).graph;
+  return graph;
+};
+
+/**
+ * Mission 2 reference: the shop on an elastic group, order management on its own two instances
+ * in different AZs (isolation + redundancy), larger database.
+ */
+export const twoAppsSeparated = (template: InfrastructureGraph, policy: EditPolicy = {}) => {
+  let g = addAutoScaling(template, { apps: ['shop'], warmupSec: 120 }, policy);
+  g = setConfig(g, 'ec2-1', { apps: ['orders'] }, policy);
+  g = setConfig(g, 'ec2-2', { apps: ['orders'] }, policy);
+  g = moveToSubnet(g, 'ec2-2', 'subnet-4', policy);
+  return setConfig(g, 'rds-1', { instanceClass: 'db.large' }, policy);
+};
+
+/** Mission 2 alternative: keep both apps together but with lots of headroom. */
+export const twoAppsColocatedWithHeadroom = (template: InfrastructureGraph, policy: EditPolicy = {}) => {
+  let g = addAutoScaling(
+    template,
+    {
+      apps: ['shop', 'orders'],
+      minCapacity: 3,
+      desiredCapacity: 3,
+      maxCapacity: 20,
+      targetCpuPct: 40,
+      warmupSec: 120,
+    },
+    policy,
+  );
+  g = unwrap(removeNode(g, 'ec2-1', policy)).graph;
+  g = unwrap(removeNode(g, 'ec2-2', policy)).graph;
+  return setConfig(g, 'rds-1', { instanceClass: 'db.large' }, policy);
+};
+
+/** Mission 2 naive: both apps on a normally tuned elastic group. */
+export const twoAppsColocated = (template: InfrastructureGraph, policy: EditPolicy = {}) => {
+  let g = addAutoScaling(template, { apps: ['shop', 'orders'], maxCapacity: 16, warmupSec: 120 }, policy);
+  g = unwrap(removeNode(g, 'ec2-1', policy)).graph;
+  g = unwrap(removeNode(g, 'ec2-2', policy)).graph;
+  return setConfig(g, 'rds-1', { instanceClass: 'db.large' }, policy);
+};

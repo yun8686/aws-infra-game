@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '../../app/AppContext';
 import { policyForMission } from '../../app/policy';
+import { missionAppIds } from '../../data/missions';
 import { canRedoProject, canUndoProject } from '../../app/store/projectStore';
 import { SERVICE_TEXT_JA } from '../../data/i18n/ja/services';
 import type { ConnectionTypeId, ServiceTypeId } from '../../domain/catalog/ids';
@@ -72,7 +73,12 @@ export function ArchitectureTab({
 
   const graph = project?.graph;
   const policy = useMemo(() => policyForMission(project?.missionId ?? ''), [project?.missionId]);
-  const report = useMemo(() => (graph ? validateGraph(graph) : undefined), [graph]);
+  const missionApps = useMemo(() => missionAppIds(project?.missionId ?? ''), [project?.missionId]);
+  const multiApp = missionApps.length > 1;
+  const report = useMemo(
+    () => (graph ? validateGraph(graph, { requiredApps: missionApps }) : undefined),
+    [graph, missionApps],
+  );
 
   const issues = useMemo(() => {
     const out: Record<NodeId, 'error' | 'warning'> = {};
@@ -253,6 +259,7 @@ export function ArchitectureTab({
             locked={locked}
             zoom={zoom}
             related={mode.kind === 'node' ? relatedNodeIds(graph, mode.nodeId) : undefined}
+            showApps={multiApp}
           />
           <div className="zoom-controls" role="group" aria-label="表示倍率">
             {ZOOMS.map((z) => (
@@ -271,7 +278,8 @@ export function ArchitectureTab({
           graph={graph}
           nodeId={mode.nodeId}
           findings={report.findings.filter((f) => f.nodeIds.includes(mode.nodeId))}
-          overview={describeNode(graph, mode.nodeId)}
+          overview={describeNode(graph, mode.nodeId, { showApps: multiApp })}
+          availableApps={missionApps}
           deleteBlockedBy={(() => {
             const p = deletePreview(mode.nodeId);
             return p.ok ? undefined : p.error[0];

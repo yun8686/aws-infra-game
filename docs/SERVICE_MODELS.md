@@ -45,7 +45,7 @@ Visual grouping (VPC / subnet boxes, AZ lanes) is derived from `placed_in`. Layo
 
 ### EC2 (`compute.ec2`)
 - **One instance** (ADR 0015).
-- Config: `instanceSize` (`small` | `medium` | `large` | `xlarge`).
+- Config: `instanceSize` (`small` | `medium` | `large` | `xlarge`), `apps` (applications it runs, ADR 0016; default `shop`).
 - Placement: exactly one subnet.
 - More fixed servers are more EC2 nodes ("同じ設定でもう1台" copies settings and connections). A failed instance stays failed for the run.
 - Application port: 80.
@@ -53,7 +53,7 @@ Visual grouping (VPC / subnet boxes, AZ lanes) is derived from `placed_in`. Layo
 
 ### Auto Scaling (`compute.autoscaling`)
 - An independent node holding the instance spec and scaling policy (EC2 nodes are not attached to it).
-- Config: `instanceSize`, `minCapacity` ≤ `desiredCapacity` ≤ `maxCapacity` (1–50), `targetCpuPct` (10–90), `warmupSec`.
+- Config: `instanceSize`, `minCapacity` ≤ `desiredCapacity` ≤ `maxCapacity` (1–50), `targetCpuPct` (10–90), `warmupSec`, `apps` (ADR 0016).
 - Scaling does not require a CloudWatch node. `warmupSec` is the time before a new instance is in service (minimum 60 s).
 - Replaces failed instances automatically; fixed EC2 groups do not.
 - Application port: 80.

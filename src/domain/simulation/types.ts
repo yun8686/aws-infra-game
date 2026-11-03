@@ -1,3 +1,4 @@
+import type { AppId } from '../catalog/apps';
 import type { ConnectionId, NodeId } from '../graph/types';
 import type { Finding } from '../validation/findings';
 
@@ -12,7 +13,8 @@ export type BottleneckCause =
   | 'unhealthy_target'
   | 'compute_unavailable'
   | 'db_unavailable'
-  | 'no_database';
+  | 'no_database'
+  | 'no_app_target';
 
 export type TimelineEventKind =
   | 'instance_failure'
@@ -51,6 +53,17 @@ export interface NodeStepMetrics {
   readonly connections?: number;
   readonly maxConnections?: number;
   readonly backlog?: number;
+  /** Requests per second arriving per application (compute nodes). */
+  readonly loadByApp?: Readonly<Partial<Record<AppId, number>>>;
+}
+
+/** Per-application view of one step (ADR 0016). */
+export interface AppStepMetrics {
+  readonly offeredRps: number;
+  readonly successRps: number;
+  readonly errorRps: number;
+  readonly errorRate: number;
+  readonly latencyMs: number;
 }
 
 export interface StepMetrics {
@@ -63,12 +76,15 @@ export interface StepMetrics {
   readonly latencyMs: number;
   readonly costPerHour: number;
   readonly nodes: Readonly<Record<NodeId, NodeStepMetrics>>;
+  readonly apps: Readonly<Partial<Record<AppId, AppStepMetrics>>>;
 }
 
 export interface Bottleneck {
   readonly cause: BottleneckCause;
   readonly nodeIds: readonly NodeId[];
   readonly connectionIds: readonly ConnectionId[];
+  /** Applications whose requests failed (empty = node-level pressure). */
+  readonly appIds: readonly AppId[];
   readonly startMinute: number;
   readonly endMinute: number;
   /** Highest pressure observed (utilization or connection demand ratio). */
@@ -87,6 +103,11 @@ export interface SimulationSummary {
   readonly availability: number;
 }
 
+/** Summary per application plus the totals. */
+export interface SimulationSummaryWithApps extends SimulationSummary {
+  readonly apps: Readonly<Partial<Record<AppId, SimulationSummary>>>;
+}
+
 export interface CostSummary {
   readonly runCost: number;
   readonly baselineHourly: number;
@@ -101,7 +122,7 @@ export interface SimulationResult {
   readonly scenarioId: string;
   readonly seed: number;
   readonly steps: readonly StepMetrics[];
-  readonly summary: SimulationSummary;
+  readonly summary: SimulationSummaryWithApps;
   readonly cost: CostSummary;
   readonly bottlenecks: readonly Bottleneck[];
   readonly timeline: readonly TimelineEvent[];

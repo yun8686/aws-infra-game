@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { APP_IDS } from '../catalog/apps';
 import { SERVICE_TYPES } from '../catalog/ids';
 import type { EditPolicy } from '../graph/commands';
 import type { InfrastructureGraph } from '../graph/types';
@@ -26,6 +27,17 @@ export const missionSchema = z.object({
     minAvailability: z.number().min(0).max(1),
     monthlyBudget: z.number().positive(),
   }),
+  /** Multi-app missions: availability and performance are judged per app (ADR 0016). */
+  appObjectives: z
+    .record(
+      z.enum(APP_IDS),
+      z.object({
+        maxErrorRate: z.number().min(0).max(1),
+        maxP95LatencyMs: z.number().positive(),
+        minAvailability: z.number().min(0).max(1),
+      }),
+    )
+    .optional(),
   scoringWeights: z.object({
     availability: z.number().min(0),
     performance: z.number().min(0),

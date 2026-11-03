@@ -37,7 +37,14 @@ export type FieldSpec =
       readonly help?: string;
     }
   | { readonly kind: 'sgRules'; readonly path: readonly string[]; readonly label: string }
-  | { readonly kind: 'alarms'; readonly path: readonly string[]; readonly label: string };
+  | { readonly kind: 'alarms'; readonly path: readonly string[]; readonly label: string }
+  /** Applications to run; options come from the mission (hidden when it has a single app). */
+  | {
+      readonly kind: 'apps';
+      readonly path: readonly string[];
+      readonly label: string;
+      readonly help?: string;
+    };
 
 const sizeOptions = INSTANCE_SIZES.map((s) => ({
   value: s,
@@ -45,6 +52,13 @@ const sizeOptions = INSTANCE_SIZES.map((s) => ({
 }));
 
 const azOptions = AZS.map((az) => ({ value: az, label: az }));
+
+const APPS_FIELD: FieldSpec = {
+  kind: 'apps',
+  path: ['apps'],
+  label: '動かすアプリ',
+  help: '同じサーバーで動くアプリは処理能力を取り合います。分けると影響を切り離せますが、サーバー代がかかります。',
+};
 
 export const SERVICE_FIELDS: { readonly [K in ServiceTypeId]: readonly FieldSpec[] } = {
   'external.internet': [],
@@ -112,8 +126,10 @@ export const SERVICE_FIELDS: { readonly [K in ServiceTypeId]: readonly FieldSpec
       options: sizeOptions,
       help: 'EC2 は1台の仮想サーバーです。台数を増やすには「同じ設定でもう1台」で追加するか、Auto Scaling を使います。',
     },
+    APPS_FIELD,
   ],
   'compute.autoscaling': [
+    APPS_FIELD,
     { kind: 'select', path: ['instanceSize'], label: 'インスタンスサイズ', options: sizeOptions },
     { kind: 'int', path: ['minCapacity'], label: '最小台数', min: 1, max: 50, step: 1, unit: '台' },
     { kind: 'int', path: ['desiredCapacity'], label: '開始時の台数', min: 1, max: 50, step: 1, unit: '台' },

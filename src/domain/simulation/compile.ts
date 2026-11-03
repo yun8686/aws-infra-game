@@ -1,3 +1,4 @@
+import { DEFAULT_APP, type AppId } from '../catalog/apps';
 import { readConfig } from '../catalog/catalog';
 import type { AvailabilityZone } from '../catalog/services';
 import { listNodes, nodesOfType, outgoing } from '../graph/graph';
@@ -29,6 +30,8 @@ export interface ComputeModel {
   readonly costPerInstanceHour: number;
   readonly autoScaling?: AutoScalingPolicy;
   readonly dbLinks: readonly DbLink[];
+  /** Applications running on this compute node (ADR 0016). */
+  readonly apps: readonly AppId[];
 }
 
 export interface DbModel {
@@ -116,6 +119,7 @@ export const compileGraph = (graph: InfrastructureGraph): ExecutionModel => {
           }
         : {}),
       dbLinks,
+      apps: fixed?.apps ?? asg?.apps ?? [DEFAULT_APP],
     });
   }
 
