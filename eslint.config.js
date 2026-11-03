@@ -16,7 +16,7 @@ export default tseslint.config(
   },
   {
     // Domain logic must stay independent of UI and non-deterministic globals.
-    files: ['src/domain/**/*.ts'],
+    files: ['src/domain/**/*.ts', 'src/model/**/*.ts', 'src/sim/**/*.ts', 'src/game/**/*.ts'],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -24,11 +24,11 @@ export default tseslint.config(
           patterns: [
             {
               group: ['react', 'react-dom', 'react/*', 'zustand', 'zustand/*'],
-              message: 'src/domain must not depend on UI libraries.',
+              message: 'Domain code must not depend on UI libraries.',
             },
             {
               group: ['**/app/**', '**/features/**', '**/shared/ui/**'],
-              message: 'src/domain must not depend on presentation code.',
+              message: 'Domain code must not depend on presentation code.',
             },
           ],
         },

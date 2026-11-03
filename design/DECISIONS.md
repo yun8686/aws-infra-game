@@ -138,3 +138,15 @@ Playtest feedback: with several servers stacked in one AZ column, request arrows
 Opening a layer shows only its resources in the tier × AZ layout (all AZ columns kept for context, so an empty AZ is visible), with the neighbouring layers named above and below instead of crossing arrows. A "ネットワーク・セキュリティ" box opens the placement map (all resources, subnets and security groups, without traffic arrows). Single-resource layers open their settings directly. Findings, route focus and placement completion drill into the right layer; choosing a subnet shows the placement map.
 
 Addendum (2026-11-03, playtest): the overview also has one card per **subnet** under 「サブネットごとに見る」, laid out as a grid (columns = AZs, rows = public then private). Opening a subnet shows the resources placed in it side by side, so a server and a database in the same subnet sit next to each other. A load balancer shows in each public subnet it uses, an Auto Scaling group in each subnet it spans, and a Multi-AZ database as primary or standby depending on the subnet. No traffic arrows are drawn in the subnet view; the request path lives in the overview. (An intermediate per-AZ version was replaced by per-subnet cards at the owner's request.)
+
+## 0018 — Rebuild around an AWS architecture diagram
+
+Status: Accepted (2026-11-03). Supersedes ADR 0005 (layout), 0009 (placement as connections), 0012 (icon part), 0017 (layered drill-down). Design: `docs/REBUILD.md`.
+
+The owner asked to rebuild the experience so the player draws a standard AWS architecture diagram. Frames that enclose things in AWS diagrams become the unit of navigation and editing.
+
+- **Model**: frames Region › VPC › AZ › Subnet, each with one parent. Resources have exactly one frame. EC2 sits in a subnet. Load balancers, Auto Scaling groups and databases sit in the VPC and list the subnets they span. Security groups are attached through a resource setting. CloudWatch sits in the Region. Links are only `traffic` and `data`.
+- **Navigation**: tap a frame to open it; a breadcrumb goes back out. Resources are added inside the open frame.
+- **Icons**: official AWS Architecture Icons, used under AWS's terms for architecture diagrams (the owner confirmed). The UI and docs keep the educational-abstraction disclaimer.
+- **Internals**: rewritten in `src/model`, `src/sim`, `src/game`. The simulation formulas, balance and scenarios carry over (engine 5 = engine 4 behaviour on the new model).
+- **Saves**: previous saves are not migrated.
