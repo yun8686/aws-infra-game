@@ -102,6 +102,7 @@ A scripted novice walkthrough and an exploit search were run before involving pe
 | # | Feedback | Resolution |
 |---|---|---|
 | 1 | 設定内容の把握が難しい — settings were only visible by opening each form | One-line setting summary on every box; plain-language overview at the top of the node sheet (placement, counts per AZ, redundancy, security groups with rules, connections); related security groups and subnets highlighted on selection; summaries in the list view |
-| 2 | EC2 がサブネットをまたいで配置している表現になっている — multi-subnet resources were drawn as one box spanning AZ columns | Servers drawn once per AZ and linked; database primary/standby drawn in their own AZs; only load balancers span AZs |
+| 2 | EC2 がサブネットをまたいで配置している表現になっている — multi-subnet resources were drawn as one box spanning AZ columns | Servers drawn once per AZ and linked; database primary/standby drawn in their own AZs |
+| 3 | ALB は AZ の外に配置しているイメージ | Explained that an ALB is a regional managed service with a node in each selected subnet. Chosen representation (B): ALB inside the VPC, above the AZ/subnet boxes, with dotted placement lines to its public subnets |
 
 Open questions for human players: whether the four-connection Auto Scaling setup is discoverable without hint 3, whether "availability" (share of minutes with ≤ 5% errors) is understood, and whether 180 s default warm-up feels fair.

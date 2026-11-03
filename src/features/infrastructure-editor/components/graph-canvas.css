@@ -176,3 +176,10 @@
   stroke: var(--accent) !important;
   stroke-width: 2 !important;
 }
+.part-link-placement {
+  stroke: var(--accent-lb);
+  stroke-width: 1;
+  stroke-dasharray: 1 3;
+  stroke-linecap: round;
+  opacity: 0.8;
+}

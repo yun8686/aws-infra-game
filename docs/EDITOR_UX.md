@@ -8,7 +8,8 @@ Every core operation works with taps only (ADR 0002). Dragging is never required
 
 - Toolbar: **＋ 追加** (add service), **構成チェック** badge (⛔ errors / ⚠ warnings / ✓ OK), **一覧 / 図** toggle, undo ↶, redo ↷.
 - Canvas: tier × AZ auto-layout (ADR 0005). Zoom: 全体 / ×1.5 / ×2, panning by native scrolling.
-  - Servers (EC2, Auto Scaling) are drawn **once per AZ** they are placed in, joined by a dotted line, so nothing appears to straddle subnets. A Multi-AZ database shows its primary and a dashed standby; a single-AZ database is drawn only in its primary AZ. Load balancers really run in several AZs and are drawn spanning them.
+  - Servers (EC2, Auto Scaling) are drawn **once per AZ** they are placed in, joined by a dotted line, so nothing appears to straddle subnets. A Multi-AZ database shows its primary and a dashed standby; a single-AZ database is drawn only in its primary AZ. Load balancers are regional managed services: they are drawn inside the VPC but above the AZ/subnet boxes, with dotted placement lines to the public subnets they use (AWS still places a load balancer node in each of those subnets, which is why at least two AZs are required).
+  - Bands follow where resources actually are: a server placed in a public subnet is drawn in the public band.
   - Every box carries a one-line summary of its key settings (e.g. `small × 2台`, `small・2〜14台`, `db.large・プライマリ`, `HTTP・インターネット向け`).
   - Selecting a resource emphasises its security groups and subnets.
 - Node sheet starts with an **overview** in plain language: placement, instance counts per AZ, redundancy, protecting security groups with their inbound rules, request sources/targets, database and pool size.

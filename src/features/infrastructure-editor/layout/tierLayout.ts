@@ -1,7 +1,7 @@
 import { readConfig } from '../../../domain/catalog/catalog';
 import { AZS, type AvailabilityZone } from '../../../domain/catalog/services';
 import { listConnections, listNodes, nodesOfType } from '../../../domain/graph/graph';
-import { azsOf, securityGroupsOf } from '../../../domain/graph/network';
+import { azsOf, securityGroupsOf, subnetsOf } from '../../../domain/graph/network';
 import type { ConnectionId, InfraNode, InfrastructureGraph, NodeId } from '../../../domain/graph/types';
 
 /**
@@ -54,9 +54,9 @@ export interface LayoutNode extends Rect {
   readonly securityGroupIds: readonly NodeId[];
 }
 
-/** Dashed link between the parts of one resource, or primary → standby replication. */
+/** Dashed link between the parts of one resource, primary → standby replication, or an ALB's subnet placement. */
 export interface LayoutLink {
-  readonly kind: 'group' | 'replication';
+  readonly kind: 'group' | 'replication' | 'placement';
   readonly nodeId: NodeId;
   readonly from: { readonly x: number; readonly y: number };
   readonly to: { readonly x: number; readonly y: number };
@@ -186,8 +186,12 @@ export const layoutGraph = (graph: InfrastructureGraph): GraphLayoutResult => {
   const zones: LayoutZone[] = [];
   let y = L.margin;
 
-  const placeTier = (tier: Tier): { top: number; bottom: number } => {
-    const items = byTier[tier];
+  /** Subnet tier a resource lives in (first placement subnet), used to pick its band. */
+  const bandOf = (node: InfraNode): 'public' | 'private' =>
+    readConfig(subnetsOf(graph, node.id)[0], 'network.subnet')?.tier ?? 'private';
+
+  const placeTier = (tier: Tier, band?: 'public' | 'private'): { top: number; bottom: number } => {
+    const items = band ? byTier[tier].filter((i) => bandOf(i.node) === band) : byTier[tier];
     const top = y;
     if (items.length === 0) return { top, bottom: top };
     const lanes = packLanes(items);
@@ -216,24 +220,36 @@ export const layoutGraph = (graph: InfrastructureGraph): GraphLayoutResult => {
     return { top, bottom: y };
   };
 
+  const tiersPresent = new Set(subnets.map((sn) => readConfig(sn, 'network.subnet')?.tier));
+
   placeTier('entry');
   y += L.rowGap * 2;
   const vpcTop = y;
   y += L.bandPadding;
-  const publicTop = y;
-  y += L.bandPadding;
-  placeTier('edge');
-  y += 10;
-  const publicBottom = y;
-  y += L.rowGap;
-  const privateTop = y;
-  y += L.bandPadding;
-  placeTier('compute');
-  y += L.rowGap;
-  placeTier('data');
-  y += 10;
-  const privateBottom = y;
-  y += L.rowGap;
+  // Load balancers are regional managed services: drawn inside the VPC but above the AZ/subnet
+  // boxes, with dotted placement lines to the subnets they use (playtest decision B).
+  const edge = placeTier('edge');
+  if (edge.bottom > edge.top) y += L.rowGap * 2;
+
+  const bands: Record<'public' | 'private', { top: number; bottom: number } | undefined> = {
+    public: undefined,
+    private: undefined,
+  };
+  for (const band of ['public', 'private'] as const) {
+    const hasResidents = (['compute', 'data'] as const).some((t) =>
+      byTier[t].some((i) => bandOf(i.node) === band),
+    );
+    if (!tiersPresent.has(band) && !hasResidents) continue;
+    const top = y;
+    y += L.bandPadding;
+    const compute = placeTier('compute', band);
+    if (compute.bottom > compute.top) y += L.rowGap;
+    const data = placeTier('data', band);
+    if (data.bottom === data.top && compute.bottom > compute.top) y -= L.rowGap;
+    y += 10;
+    bands[band] = { top, bottom: y };
+    y += L.rowGap;
+  }
   const vpcBottom = y;
 
   const vpcs = nodesOfType(graph, 'network.vpc');
@@ -250,10 +266,10 @@ export const layoutGraph = (graph: InfrastructureGraph): GraphLayoutResult => {
     });
   }
   columns.forEach((az, i) => {
-    for (const [tier, top, bottom] of [
-      ['public', publicTop, publicBottom],
-      ['private', privateTop, privateBottom],
-    ] as const) {
+    for (const tier of ['public', 'private'] as const) {
+      const band = bands[tier];
+      if (!band) continue;
+      const { top, bottom } = band;
       const members = subnets.filter((s) => {
         const cfg = readConfig(s, 'network.subnet');
         return cfg?.az === az && cfg.tier === tier;
@@ -319,6 +335,20 @@ export const layoutGraph = (graph: InfrastructureGraph): GraphLayoutResult => {
   }
 
   const links: LayoutLink[] = [];
+  for (const alb of nodes.filter((n) => graph.nodes[n.id]?.serviceType === 'lb.alb')) {
+    for (const sn of subnetsOf(graph, alb.id)) {
+      const cfg = readConfig(sn, 'network.subnet');
+      const zone = zones.find((z) => z.kind === 'subnet' && z.key === `${cfg?.az}:${cfg?.tier}`);
+      if (!zone) continue;
+      const x = Math.min(Math.max(zone.x + zone.width / 2, alb.x + 8), alb.x + alb.width - 8);
+      links.push({
+        kind: 'placement',
+        nodeId: alb.id,
+        from: { x, y: alb.y + alb.height },
+        to: { x, y: zone.y },
+      });
+    }
+  }
   for (const [id, parts] of partsById) {
     for (let i = 1; i < parts.length; i++) {
       const a = parts[i - 1] as LayoutNode;

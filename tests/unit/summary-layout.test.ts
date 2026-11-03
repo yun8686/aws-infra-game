@@ -8,7 +8,7 @@ import {
   partSummary,
   relatedNodeIds,
 } from '../../src/features/infrastructure-editor/summary';
-import { unwrap } from '../fixtures/builders';
+import { buildWebStackFromBaseline, unwrap } from '../fixtures/builders';
 import { ASG_SMALL, replaceWebWithAutoScaling, setConfig } from '../fixtures/solutions';
 
 const template = () => TEMPLATES['ecommerce-starter']();
@@ -101,5 +101,42 @@ describe('configuration summaries (playtest: settings were hard to grasp)', () =
   it('relates a resource to its security groups and subnets', () => {
     expect([...relatedNodeIds(template(), 'ec2-1')].sort()).toEqual(['sg-2', 'subnet-3']);
     expect([...relatedNodeIds(template(), 'sg-2')]).toEqual(['ec2-1']);
+  });
+});
+
+describe('load balancer drawn at VPC level (playtest decision B)', () => {
+  const contains = (
+    outer: { x: number; y: number; width: number; height: number },
+    inner: { x: number; y: number },
+  ) =>
+    inner.x >= outer.x &&
+    inner.x <= outer.x + outer.width &&
+    inner.y >= outer.y &&
+    inner.y <= outer.y + outer.height;
+
+  it('places the ALB inside the VPC, above and outside every subnet box, linked to the subnets it uses', () => {
+    const layout = layoutGraph(template());
+    const alb = layout.nodes.find((n) => n.id === 'alb-1');
+    const vpc = layout.zones.find((z) => z.kind === 'vpc');
+    const subnetZones = layout.zones.filter((z) => z.kind === 'subnet');
+    if (!alb || !vpc) throw new Error('missing');
+    expect(contains(vpc, { x: alb.x, y: alb.y })).toBe(true);
+    for (const z of subnetZones) expect(alb.y + alb.height).toBeLessThan(z.y);
+    const placement = layout.links.filter((l) => l.kind === 'placement');
+    expect(placement).toHaveLength(2);
+    const publicZones = subnetZones.filter((z) => z.key.endsWith(':public'));
+    for (const l of placement) expect(publicZones.some((z) => l.to.y === z.y)).toBe(true);
+  });
+
+  it('draws a server placed in a public subnet inside the public band', () => {
+    const s = buildWebStackFromBaseline();
+    const bastion = s.b.add('compute.ec2');
+    s.b.link(bastion, s.pubB, 'placed_in');
+    const layout = layoutGraph(s.b.graph);
+    const part = layout.nodes.find((n) => n.id === bastion);
+    const zone = layout.zones.find((z) => z.key === 'az-b:public');
+    if (!part || !zone) throw new Error('missing');
+    expect(contains(zone, { x: part.x, y: part.y })).toBe(true);
+    expect(contains(zone, { x: part.x + part.width, y: part.y + part.height })).toBe(true);
   });
 });
