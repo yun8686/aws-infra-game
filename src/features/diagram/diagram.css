@@ -1,0 +1,241 @@
+/* AWS architecture diagram conventions: group colours from the official group icons. */
+.diagram-viewport {
+  --aws-cloud: #242f3e;
+  --aws-region: #00a4a6;
+  --aws-vpc: #8c4fff;
+  --aws-az: #147eba;
+  --aws-public: #7aa116;
+  --aws-private: #00a4a6;
+  --aws-asg: #ed7100;
+  --public-fill: #f2f6e8;
+  --private-fill: #e6f6f7;
+  --band-fill: #ffffff;
+  --frame-text: #232f3e;
+  width: 100%;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .diagram-viewport {
+    --aws-cloud: #cbd5e1;
+    --public-fill: #1d2a12;
+    --private-fill: #0d2a2b;
+    --band-fill: #0f172a;
+    --frame-text: #e2e8f0;
+    --aws-az: #5aa9e6;
+  }
+}
+:root[data-theme='dark'] .diagram-viewport {
+  --aws-cloud: #cbd5e1;
+  --public-fill: #1d2a12;
+  --private-fill: #0d2a2b;
+  --band-fill: #0f172a;
+  --frame-text: #e2e8f0;
+  --aws-az: #5aa9e6;
+}
+
+.diagram-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  font-family: inherit;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.icon-dark {
+  display: none;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .icon-light {
+    display: none;
+  }
+  :root:not([data-theme='light']) .icon-dark {
+    display: inline;
+  }
+}
+:root[data-theme='dark'] .icon-light {
+  display: none;
+}
+:root[data-theme='dark'] .icon-dark {
+  display: inline;
+}
+
+/* Frames */
+.frame-rect {
+  fill: none;
+  stroke-width: 1.5;
+}
+.frame-label {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--frame-text);
+}
+.frame-cloud .frame-rect {
+  stroke: var(--aws-cloud);
+}
+.frame-region .frame-rect {
+  stroke: var(--aws-region);
+  stroke-dasharray: 6 4;
+}
+.frame-vpc .frame-rect {
+  stroke: var(--aws-vpc);
+}
+.frame-az .frame-rect {
+  stroke: var(--aws-az);
+  stroke-dasharray: 6 4;
+}
+.frame-subnet.frame-public .frame-rect {
+  stroke: var(--aws-public);
+  fill: var(--public-fill);
+}
+.frame-subnet.frame-private .frame-rect {
+  stroke: var(--aws-private);
+  fill: var(--private-fill);
+}
+.frame-strip .frame-rect {
+  stroke: var(--border);
+  stroke-dasharray: 3 3;
+}
+.frame.is-tappable {
+  cursor: pointer;
+}
+.frame.is-tappable:active .frame-rect {
+  stroke-width: 3;
+}
+.frame-chevron {
+  font-size: 18px;
+  fill: var(--muted);
+}
+.frame-preview-count {
+  font-size: 11px;
+  fill: var(--muted-strong);
+}
+
+/* Items */
+.item {
+  cursor: pointer;
+}
+.item-hit {
+  fill: transparent;
+  stroke: none;
+}
+.item-label {
+  font-size: 11px;
+  fill: var(--frame-text);
+}
+.item-badge {
+  font-size: 10px;
+  font-weight: 600;
+}
+.badge-ok {
+  fill: var(--ok);
+}
+.badge-warn {
+  fill: var(--warn);
+}
+.badge-bad {
+  fill: var(--bad);
+}
+.band-rect {
+  fill: var(--band-fill);
+  stroke: var(--node-stroke);
+  stroke-width: 1.2;
+}
+.item-band.type-alb .band-rect {
+  stroke: var(--aws-vpc);
+}
+.item-band.type-asg .band-rect {
+  stroke: var(--aws-asg);
+  stroke-dasharray: 5 3;
+}
+.item-band.type-rds .band-rect {
+  stroke: #c925d1;
+}
+.band-label {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--frame-text);
+}
+.band-type {
+  font-size: 10px;
+  fill: var(--muted-strong);
+}
+.item.is-selected .item-hit,
+.item.is-selected .band-rect {
+  stroke: var(--selected);
+  stroke-width: 2.5;
+}
+.item.is-candidate .item-hit,
+.item.is-candidate .band-rect {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-dasharray: 4 3;
+}
+.item.is-dimmed {
+  opacity: 0.35;
+}
+.issue-dot {
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+.issue-error {
+  fill: var(--bad);
+}
+.issue-warning {
+  fill: var(--warn);
+}
+
+/* Arrows */
+.arrow-halo {
+  stroke: var(--surface);
+  stroke-width: 5;
+  opacity: 0.8;
+}
+.arrow-line {
+  stroke: var(--edge);
+  stroke-width: 1.6;
+}
+.arrow-data .arrow-line {
+  stroke-dasharray: 5 3;
+}
+.arrowhead {
+  fill: var(--edge);
+}
+.arrow-outside {
+  font-size: 10px;
+  fill: var(--muted-strong);
+}
+
+/* Breadcrumb */
+.breadcrumb ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+.breadcrumb li {
+  display: flex;
+  align-items: center;
+}
+.breadcrumb li + li::before {
+  content: '›';
+  margin: 0 4px;
+  color: var(--muted);
+}
+.breadcrumb button {
+  min-height: 44px;
+  padding: 0 6px;
+  border: none;
+  background: none;
+  color: var(--accent-strong);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.breadcrumb [aria-current] {
+  font-weight: 700;
+  padding: 0 6px;
+}
