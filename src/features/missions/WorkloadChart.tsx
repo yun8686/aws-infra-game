@@ -1,5 +1,5 @@
-import { baseRpsAt, scenarioApps, workloadRpsAt, type Scenario } from '../../domain/simulation/scenario';
-import { APP_TEXT_JA } from '../../data/i18n/ja/apps';
+import { baseRpsAt, scenarioApps, workloadRpsAt, type Scenario } from '../../sim';
+import { APP_TEXT_JA } from '../../i18n';
 import '../../shared/ui/charts/viz.css';
 
 const APP_COLORS = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)'] as const;

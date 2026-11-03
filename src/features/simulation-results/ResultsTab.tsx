@@ -1,19 +1,22 @@
 import { useState } from 'react';
 import { useAppStore } from '../../app/AppContext';
 import { navigate } from '../../app/router';
-import { BOTTLENECK_TEXT_JA } from '../../data/i18n/ja/bottlenecks';
-import { DIMENSION_TEXT_JA, LEARNING_TOPIC_TEXT_JA, METRIC_TEXT_JA } from '../../data/i18n/ja/evaluation';
-import { FINDING_TEXT_JA, formatFindingText } from '../../data/i18n/ja/findings';
-import type { Check } from '../../domain/scoring/evaluate';
-import type { Finding } from '../../domain/validation/findings';
+import {
+  BOTTLENECK_TEXT_JA,
+  DIMENSION_TEXT_JA,
+  FINDING_TEXT_JA,
+  LEARNING_TOPIC_TEXT_JA,
+  METRIC_TEXT_JA,
+  MISSION_TEXT_JA,
+  appName,
+  formatFindingText,
+} from '../../i18n';
+import { missionAppIds, type MissionId } from '../../content';
+import { revealedHintCount, type Check } from '../../game';
+import type { Finding } from '../../model';
 import { credits, ms, percent } from '../../shared/ui/format';
-import { nodeLabel } from '../infrastructure-editor/components/EditorSheets';
+import { resourceName } from '../diagram/DiagramViewer';
 import { StaleNotice } from '../monitoring/MonitorTab';
-import { appName } from '../../data/i18n/ja/apps';
-import { missionAppIds } from '../../data/missions';
-import { MISSION_TEXT_JA } from '../../data/i18n/ja/missions';
-import type { MissionId } from '../../data/missions';
-import { revealedHintCount } from '../../domain/projects/project';
 
 const formatCheck = (c: Check): string => {
   switch (c.metric) {
@@ -45,13 +48,15 @@ export function ResultsTab({ projectId }: { readonly projectId: string }) {
   const onRun = () => {
     const r = runSimulation(projectId);
     setBlocking(
-      !r.ok && r.error.kind === 'invalid_graph' ? r.error.findings.filter((f) => f.severity === 'error') : [],
+      !r.ok && r.error.kind === 'invalid_diagram'
+        ? r.error.findings.filter((f) => f.severity === 'error')
+        : [],
     );
   };
   const multiApp = missionAppIds(project.missionId).length > 1;
   const e = run?.evaluation;
   const s = run?.simulation;
-  const graph = project.graph;
+  const graph = project.diagram;
 
   return (
     <div className="tab-content">
@@ -123,7 +128,7 @@ export function ResultsTab({ projectId }: { readonly projectId: string }) {
                         {b.appIds.length > 0 && multiApp
                           ? `${b.appIds.map(appName).join('・')}への影響 ・ `
                           : ''}
-                        {b.nodeIds.map((id) => nodeLabel(graph, id)).join('、')} ・{' '}
+                        {b.nodeIds.map((id) => resourceName(graph, id)).join('、')} ・{' '}
                         {b.windows
                           .map((w) =>
                             w.startMinute === w.endMinute
@@ -136,7 +141,7 @@ export function ResultsTab({ projectId }: { readonly projectId: string }) {
                       <p>{t.explanation}</p>
                       <p className="remediation">{t.remediation}</p>
                       <div className="bottleneck-actions">
-                        {b.nodeIds[0] && graph.nodes[b.nodeIds[0]] && (
+                        {b.nodeIds[0] && graph.resources[b.nodeIds[0]] && (
                           <button
                             type="button"
                             className="secondary-button"

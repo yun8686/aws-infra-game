@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useAppStore } from '../../app/AppContext';
 import { navigate } from '../../app/router';
-import { MISSION_TEXT_JA } from '../../data/i18n/ja/missions';
-import { MISSIONS, type MissionId } from '../../data/missions';
-import { projectStatus, type Project } from '../../domain/projects/project';
-import { estimateMonthlyCost } from '../../domain/simulation/cost';
+import { MISSION_TEXT_JA } from '../../i18n';
+import { MISSIONS, type MissionId } from '../../content';
+import { projectStatus, type Project } from '../../game';
+import { estimateMonthlyCost } from '../../sim';
 import { credits } from '../../shared/ui/format';
 
 const STATUS_LABEL = { not_run: '未実行', failed: '目標未達', passed: '目標達成' } as const;
@@ -17,7 +17,7 @@ function ProjectCard({ project }: { readonly project: Project }) {
   const missionId = project.missionId as MissionId;
   const text = MISSION_TEXT_JA[missionId];
   const budget = MISSIONS[missionId]?.objectives.monthlyBudget ?? 0;
-  const estimate = estimateMonthlyCost(project.graph);
+  const estimate = estimateMonthlyCost(project.diagram);
   const status = projectStatus(project);
 
   return (

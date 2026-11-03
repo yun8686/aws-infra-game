@@ -98,6 +98,10 @@
 .frame.is-tappable {
   cursor: pointer;
 }
+/* The whole frame area is tappable, not only its outline (frames without fill). */
+.frame.is-tappable .frame-rect {
+  pointer-events: all;
+}
 .frame.is-tappable:active .frame-rect {
   stroke-width: 3;
 }

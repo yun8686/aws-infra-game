@@ -1,9 +1,8 @@
-import { tapResource } from './helpers';
+import { startMission, tapResource } from './helpers';
 import { expect, test, type Page } from '@playwright/test';
 
 const startTvSpike = async (page: Page) => {
-  await page.goto('/');
-  await page.getByRole('button', { name: 'この案件を受注する' }).first().click();
+  await startMission(page, 'TV放映によるアクセス急増');
   await expect(page.getByRole('heading', { level: 2, name: 'TV放映によるアクセス急増' })).toBeVisible();
 };
 
@@ -12,7 +11,6 @@ test('a new player can take the TV spike job and read the brief', async ({ page 
   await expect(page.locator('.customer-request')).toContainText('10倍');
   await expect(page.getByText('16,000 cr 以下')).toBeVisible();
   await expect(page.getByText('削除できません（設定変更は可能）')).toBeVisible();
-  // No horizontal scrolling on a phone.
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
 });
@@ -20,8 +18,8 @@ test('a new player can take the TV spike job and read the brief', async ({ page 
 test('tabs keep project state and the back button returns to the list', async ({ page }) => {
   await startTvSpike(page);
   await page.getByRole('link', { name: /構成/ }).tap();
-  await tapResource(page, /EC2 web-1/);
-  await expect(page.getByRole('dialog')).toContainText('サーバー (EC2)');
+  await tapResource(page, 'web-1');
+  await expect(page.getByRole('dialog')).toContainText('EC2 インスタンス');
   await page.getByRole('link', { name: /結果/ }).tap();
   await page.getByRole('button', { name: /シミュレーションを実行/ }).tap();
   await expect(page.locator('.result-headline h2')).toHaveText('目標未達');
@@ -29,7 +27,6 @@ test('tabs keep project state and the back button returns to the list', async ({
   await page.getByRole('link', { name: /概要/ }).tap();
   await page.getByRole('link', { name: /結果/ }).tap();
   await expect(page.locator('.result-headline h2')).toHaveText('目標未達');
-  // Browser back returns to the previous tab.
   await page.goBack();
   await expect(page.getByRole('heading', { level: 2, name: 'TV放映によるアクセス急増' })).toBeVisible();
   await page.getByRole('button', { name: '案件一覧に戻る' }).tap();
@@ -52,12 +49,8 @@ test('projects persist across reloads and can be deleted', async ({ page }) => {
 });
 
 test('the sandbox starts empty and explains why it cannot run yet', async ({ page }) => {
-  await page.goto('/');
-  await page
-    .locator('.card', { hasText: 'サンドボックス' })
-    .getByRole('button', { name: 'この案件を受注する' })
-    .click();
+  await startMission(page, 'サンドボックス');
   await page.getByRole('link', { name: /結果/ }).tap();
   await page.getByRole('button', { name: /シミュレーションを実行/ }).tap();
-  await expect(page.getByRole('alert')).toContainText('インターネットからサーバーへの経路がありません');
+  await expect(page.getByRole('alert')).toContainText('ユーザーからサーバーへの経路がありません');
 });

@@ -1,6 +1,6 @@
 import { useAppStore } from '../../app/AppContext';
 import { routeHref, type ProjectTab } from '../../app/router';
-import { ArchitectureTab } from '../infrastructure-editor/ArchitectureTab';
+import { EditorTab } from '../editor/EditorTab';
 import { BriefingTab } from '../missions/BriefingTab';
 import { ResultsTab } from '../simulation-results/ResultsTab';
 import { MonitorTab } from '../monitoring/MonitorTab';
@@ -40,7 +40,7 @@ export function ProjectScreen({
       <ProjectHeader projectId={projectId} />
       <main className="screen-body">
         {tab === 'brief' && <BriefingTab projectId={projectId} />}
-        {tab === 'architecture' && <ArchitectureTab key={focus ?? ''} projectId={projectId} focus={focus} />}
+        {tab === 'architecture' && <EditorTab key={focus ?? ''} projectId={projectId} focus={focus} />}
         {tab === 'monitor' && <MonitorTab projectId={projectId} />}
         {tab === 'results' && <ResultsTab projectId={projectId} />}
       </main>

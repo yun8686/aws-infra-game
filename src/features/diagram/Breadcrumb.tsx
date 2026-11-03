@@ -1,5 +1,5 @@
 import type { Diagram } from '../../model';
-import { frameTitle } from './labels';
+import { frameTitle } from '../../i18n/resources';
 import { breadcrumb } from './layout';
 
 export interface BreadcrumbProps {

@@ -14,7 +14,7 @@ test('monitoring explains the run over time and links back to the cause', async 
   await page.getByRole('slider', { name: '時刻', exact: true }).fill('55');
   await expect(page.locator('.playback-time')).toHaveText('55分 / 119分');
   await expect(page.locator('.timeline-list').first()).toContainText('サーバー障害が発生');
-  await expect(page.locator('.monitor-graph')).toContainText('⛔ 停止（故障）');
+  await expect(page.locator('.monitor-graph')).toContainText('停止（故障）');
 
   // Charts are keyboard/scrub accessible and share the playhead.
   const chart = page.getByRole('slider', { name: 'エラー率（時刻を選択）' });
@@ -27,10 +27,13 @@ test('monitoring explains the run over time and links back to the cause', async 
   await expect(page.locator('.bottleneck-list > li').first()).toContainText('サーバーの処理能力が不足');
   await expect(page.locator('.bottleneck-list > li').first()).toContainText('32〜');
   await page.getByRole('button', { name: '構成図で見る' }).first().tap();
-  await expect(page.getByRole('dialog')).toContainText('サーバー (EC2)');
+  await expect(page.getByRole('dialog')).toContainText('EC2 インスタンス');
 
   // Editing makes the result stale until re-run.
-  await page.getByRole('dialog').getByLabel('インスタンスサイズ').selectOption('large');
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: /^large/ })
+    .tap();
   await page.getByRole('link', { name: /結果/ }).tap();
   await expect(page.getByText('構成が変更されています')).toBeVisible();
   await page.getByRole('button', { name: '再実行' }).tap();

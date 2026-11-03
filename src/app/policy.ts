@@ -1,6 +1,6 @@
-import { MISSIONS, type MissionId } from '../data/missions';
-import type { EditPolicy } from '../domain/graph/commands';
-import { missionEditPolicy } from '../domain/missions/mission';
+import { MISSIONS, type MissionId } from '../content';
+import { missionEditPolicy } from '../game';
+import type { EditPolicy } from '../model';
 
 export const policyForMission = (missionId: string): EditPolicy => {
   const mission = MISSIONS[missionId as MissionId];

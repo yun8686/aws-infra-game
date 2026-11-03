@@ -2,14 +2,19 @@
  * Headless simulation runner for balancing and debugging.
  *   npm run sim -- [--template ecommerce-starter] [--scenario tv-spike] [--seed 1] [--set node.path=value ...] [--json]
  *   npm run sim -- --mission tv-spike [--set ...]   (uses the mission's template, scenario and seed, then evaluates)
- * Example: npm run sim -- --set ec2-1.instanceCount=12 --set rds-1.instanceClass=db.large
+ * Example: npm run sim -- --set web-1.size=large --set db-1.instanceClass=db.large
  */
-import { SCENARIOS, type ScenarioId } from '../src/data/scenarios';
-import { TEMPLATES, type TemplateId } from '../src/data/templates';
-import { updateNodeConfig } from '../src/domain/graph/commands';
-import { simulate } from '../src/domain/simulation';
-import { MISSIONS, type MissionId } from '../src/data/missions';
-import { evaluateMission } from '../src/domain/scoring/evaluate';
+import {
+  MISSIONS,
+  SCENARIOS,
+  TEMPLATES,
+  type MissionId,
+  type ScenarioId,
+  type TemplateId,
+} from '../src/content';
+import { evaluateMission } from '../src/game';
+import { updateConfig } from '../src/model';
+import { simulate } from '../src/sim';
 
 const args = process.argv.slice(2);
 const opt = (name: string, fallback: string) => {
@@ -21,18 +26,18 @@ const sets = args.flatMap((a, i) => (a === '--set' && args[i + 1] ? [args[i + 1]
 const missionId = opt('mission', '') as MissionId | '';
 const mission = missionId ? MISSIONS[missionId] : undefined;
 const templateId = (
-  mission?.initialGraph.kind === 'template'
-    ? mission.initialGraph.templateId
+  mission?.initialDiagram.kind === 'template'
+    ? mission.initialDiagram.templateId
     : opt('template', 'ecommerce-starter')
 ) as TemplateId;
 const scenarioId = (mission?.scenarioId ?? opt('scenario', 'tv-spike')) as ScenarioId;
 const seed = mission?.seed ?? Number(opt('seed', '1'));
 
-let graph = TEMPLATES[templateId]();
+let diagram = TEMPLATES[templateId]();
 for (const s of sets) {
   const [lhs, raw] = s.split('=') as [string, string];
   const [nodeId, ...path] = lhs.split('.');
-  const node = nodeId ? graph.nodes[nodeId] : undefined;
+  const node = nodeId ? (diagram.resources[nodeId] ?? diagram.links[nodeId]) : undefined;
   if (!node || path.length === 0) throw new Error(`Bad --set ${s}`);
   const config = structuredClone(node.config) as Record<string, unknown>;
   let cursor = config;
@@ -40,12 +45,12 @@ for (const s of sets) {
   const value =
     raw === 'true' ? true : raw === 'false' ? false : Number.isNaN(Number(raw)) ? raw : Number(raw);
   cursor[path[path.length - 1] as string] = value;
-  const r = updateNodeConfig(graph, node.id, config);
-  if (!r.ok) throw new Error(`Rejected ${s}: ${r.error.map((f) => f.code).join(', ')}`);
-  graph = r.value.graph;
+  const r = updateConfig(diagram, node.id, config);
+  if (!r.ok) throw new Error(`Rejected ${s}: ${r.finding.code}`);
+  diagram = r.diagram;
 }
 
-const result = simulate({ graph, scenario: SCENARIOS[scenarioId], seed });
+const result = simulate({ diagram, scenario: SCENARIOS[scenarioId], seed });
 if (!result.ok) {
   console.error(JSON.stringify(result.error, null, 2));
   process.exit(1);

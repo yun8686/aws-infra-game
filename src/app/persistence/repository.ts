@@ -1,4 +1,4 @@
-import type { Project } from '../../domain/projects/project';
+import type { Project } from '../../game';
 
 export interface LoadResult {
   readonly projects: readonly Project[];

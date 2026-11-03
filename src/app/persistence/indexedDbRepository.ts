@@ -1,7 +1,8 @@
-import { parseProject, type Project } from '../../domain/projects/project';
+import { parseProject, type Project } from '../../game';
 import type { LoadResult, ProjectRepository } from './repository';
 
-const DB_NAME = 'infra-manager';
+/** New database for the diagram model (ADR 0018); saves of the previous prototype are left untouched. */
+const DB_NAME = 'infra-diagram';
 const DB_VERSION = 1;
 const STORE = 'projects';
 

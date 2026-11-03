@@ -2,11 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '../../app/AppContext';
 import { navigate } from '../../app/router';
 import { isRunStale } from '../../app/store/projectStore';
-import { MISSIONS, missionAppIds, type MissionId } from '../../data/missions';
-import { appName } from '../../data/i18n/ja/apps';
-import { SCENARIO_EVENT_KINDS, TIMELINE_TEXT_JA } from '../../data/i18n/ja/timeline';
-import { DiagramNavigator } from '../infrastructure-editor/components/DiagramNavigator';
-import { nodeLabel } from '../infrastructure-editor/components/EditorSheets';
+import { MISSIONS, missionAppIds, type MissionId } from '../../content';
+import { SCENARIO_EVENT_KINDS, TIMELINE_TEXT_JA, appName } from '../../i18n';
+import { DiagramViewer, resourceName } from '../diagram/DiagramViewer';
 import { TimeSeriesChart, type Series } from '../../shared/ui/charts/TimeSeriesChart';
 import { credits, ms, percent } from '../../shared/ui/format';
 import {
@@ -18,7 +16,7 @@ import {
   ec2Utilization,
   pick,
 } from './series';
-import type { StepMetrics } from '../../domain/simulation/types';
+import type { StepMetrics } from '../../sim';
 import './monitor.css';
 import { GuideCard } from '../../shared/ui/GuideCard';
 
@@ -61,7 +59,7 @@ export function StaleNotice({ projectId }: { readonly projectId: string }) {
 /** Monitoring is a gameplay surface (PRODUCT_SPEC §9): scrub or play back the run and see cause and effect. */
 export function MonitorTab({ projectId }: { readonly projectId: string }) {
   const run = useAppStore((s) => s.runs[projectId]);
-  const graph = useAppStore((s) => s.projects[projectId]?.graph);
+  const graph = useAppStore((s) => s.projects[projectId]?.diagram);
   const missionId = useAppStore((s) => s.projects[projectId]?.missionId) as MissionId | undefined;
   const minute = useAppStore((s) => s.playhead[projectId] ?? 0);
   const setPlayhead = useAppStore((s) => s.setPlayhead);
@@ -90,7 +88,7 @@ export function MonitorTab({ projectId }: { readonly projectId: string }) {
     const dbs = databaseNodeIds(graph)
       .filter((id) => sim.steps[0]?.nodes[id])
       .slice(0, MAX_SERIES);
-    const name = (id: string) => graph.nodes[id]?.name ?? id;
+    const name = (id: string) => resourceName(graph, id);
     const perNode = (ids: string[], f: (id: string, s: StepMetrics) => number): Series[] =>
       ids.map((id, i) => ({
         id,
@@ -271,13 +269,10 @@ export function MonitorTab({ projectId }: { readonly projectId: string }) {
       </section>
 
       <section className="card monitor-graph">
-        <DiagramNavigator
-          graph={graph}
-          metrics={badges}
-          showApps={multiApp}
-          onSelect={(id) =>
-            id && navigate({ name: 'project', id: projectId, tab: 'architecture', focus: id })
-          }
+        <DiagramViewer
+          diagram={graph}
+          badges={badges}
+          onSelect={(id) => navigate({ name: 'project', id: projectId, tab: 'architecture', focus: id })}
         />
         <p className="fine-print monitor-graph-caption">
           {minute}分時点の状態（サーバーは CPU 使用率・稼働台数。✓ 余裕あり / ⚠ 70%以上 / ⛔
@@ -298,7 +293,7 @@ export function MonitorTab({ projectId }: { readonly projectId: string }) {
                   <span>
                     {TIMELINE_TEXT_JA[e.kind]}
                     {e.nodeIds.length > 0 && (
-                      <small>（{e.nodeIds.map((id) => nodeLabel(graph, id)).join('、')}）</small>
+                      <small>（{e.nodeIds.map((id) => resourceName(graph, id)).join('、')}）</small>
                     )}
                     {e.kind === 'scale_out' || e.kind === 'scale_in' ? (
                       <small>

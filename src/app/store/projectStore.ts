@@ -1,7 +1,14 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
-import { MISSIONS, startMissionById, type MissionId } from '../../data/missions';
-import { SCENARIOS, type ScenarioId } from '../../data/scenarios';
-import { MISSION_TEXT_JA } from '../../data/i18n/ja/missions';
+import { MISSIONS, SCENARIOS, startMissionById, type MissionId, type ScenarioId } from '../../content';
+import {
+  createProject,
+  missionEditPolicy,
+  runMission,
+  summarizeRun,
+  type MissionRun,
+  type Project,
+} from '../../game';
+import { MISSION_TEXT_JA } from '../../i18n';
 import {
   canRedo,
   canUndo,
@@ -9,14 +16,12 @@ import {
   pushHistory,
   redo,
   undo,
-  type GraphHistory,
-} from '../../domain/graph/history';
-import type { InfrastructureGraph } from '../../domain/graph/types';
-import { runMission, type MissionRun } from '../../domain/missions/runMission';
-import { missionEditPolicy } from '../../domain/missions/mission';
-import type { CommandResult, EditPolicy } from '../../domain/graph/commands';
-import { createProject, summarizeRun, type Project } from '../../domain/projects/project';
-import { computeInputHash, type SimulationError } from '../../domain/simulation/engine';
+  type Diagram,
+  type DiagramHistory,
+  type EditPolicy,
+  type EditResult,
+} from '../../model';
+import { computeInputHash, type SimulationError } from '../../sim';
 import type { ProjectRepository } from '../persistence/repository';
 
 export type SaveState = 'saved' | 'dirty' | 'saving' | 'error';
@@ -31,7 +36,7 @@ export interface AppState {
   readonly status: 'loading' | 'ready' | 'error';
   readonly projects: Readonly<Record<string, Project>>;
   /** Undo history per project; in memory only. */
-  readonly histories: Readonly<Record<string, GraphHistory>>;
+  readonly histories: Readonly<Record<string, DiagramHistory>>;
   readonly saveState: Readonly<Record<string, SaveState>>;
   /** Latest full run per project (not persisted; the summary is). */
   readonly runs: Readonly<Record<string, MissionRun>>;
@@ -42,12 +47,12 @@ export interface AppState {
 
   init(): Promise<void>;
   startProject(missionId: MissionId): string;
-  applyGraph(projectId: string, next: InfrastructureGraph): void;
-  /** Run an edit command with the mission's edit policy; the graph changes only if it succeeds. */
-  edit<E>(
+  applyDiagram(projectId: string, next: Diagram): void;
+  /** Run an edit command with the mission's edit policy; the diagram changes only if it succeeds. */
+  edit(
     projectId: string,
-    command: (graph: InfrastructureGraph, policy: EditPolicy) => CommandResult<E>,
-  ): CommandResult<E> | undefined;
+    command: (diagram: Diagram, policy: EditPolicy) => EditResult,
+  ): EditResult | undefined;
   undo(projectId: string): void;
   redo(projectId: string): void;
   runSimulation(projectId: string): { ok: true; run: MissionRun } | { ok: false; error: SimulationError };
@@ -73,9 +78,9 @@ export const createAppStore = (deps: AppDeps): StoreApi<AppState> =>
       }));
     };
 
-    const setGraphFromHistory = (id: string, history: GraphHistory) => {
+    const setGraphFromHistory = (id: string, history: DiagramHistory) => {
       set((s) => ({ histories: { ...s.histories, [id]: history } }));
-      updateProject(id, { graph: history.present });
+      updateProject(id, { diagram: history.present });
     };
 
     return {
@@ -97,7 +102,7 @@ export const createAppStore = (deps: AppDeps): StoreApi<AppState> =>
           set({
             status: 'ready',
             projects: Object.fromEntries(projects.map((p) => [p.id, p])),
-            histories: Object.fromEntries(projects.map((p) => [p.id, createHistory(p.graph)])),
+            histories: Object.fromEntries(projects.map((p) => [p.id, createHistory(p.diagram)])),
             saveState: Object.fromEntries(projects.map((p) => [p.id, 'saved' as const])),
             loadErrors: corrupt,
           });
@@ -108,25 +113,25 @@ export const createAppStore = (deps: AppDeps): StoreApi<AppState> =>
 
       startProject(missionId) {
         const mission = MISSIONS[missionId];
-        const { graph } = startMissionById(missionId);
+        const { diagram } = startMissionById(missionId);
         const id = deps.newId();
         const project = createProject({
           id,
           missionId,
           missionVersion: mission.version,
           name: MISSION_TEXT_JA[missionId].projectName,
-          graph,
+          diagram,
           now: deps.now(),
         });
         set((s) => ({
           projects: { ...s.projects, [id]: project },
-          histories: { ...s.histories, [id]: createHistory(graph) },
+          histories: { ...s.histories, [id]: createHistory(diagram) },
           saveState: { ...s.saveState, [id]: 'dirty' },
         }));
         return id;
       },
 
-      applyGraph(id, next) {
+      applyDiagram(id, next) {
         const history = get().histories[id];
         if (!history) return;
         setGraphFromHistory(id, pushHistory(history, next));
@@ -136,8 +141,8 @@ export const createAppStore = (deps: AppDeps): StoreApi<AppState> =>
         const project = get().projects[id];
         if (!project) return undefined;
         const mission = MISSIONS[project.missionId as MissionId];
-        const result = command(project.graph, mission ? missionEditPolicy(mission) : {});
-        if (result.ok) get().applyGraph(id, result.value.graph);
+        const result = command(project.diagram, mission ? missionEditPolicy(mission) : {});
+        if (result.ok) get().applyDiagram(id, result.diagram);
         return result;
       },
 
@@ -156,7 +161,7 @@ export const createAppStore = (deps: AppDeps): StoreApi<AppState> =>
         if (!project) return { ok: false, error: { kind: 'invalid_scenario', message: 'project not found' } };
         const mission = MISSIONS[project.missionId as MissionId];
         const scenario = SCENARIOS[mission.scenarioId as ScenarioId];
-        const result = runMission(mission, scenario, project.graph);
+        const result = runMission(mission, scenario, project.diagram);
         if (!result.ok) return { ok: false, error: result.error };
         set((s) => ({ runs: { ...s.runs, [id]: result.value }, playhead: { ...s.playhead, [id]: 0 } }));
         updateProject(id, {
@@ -199,7 +204,7 @@ export const createAppStore = (deps: AppDeps): StoreApi<AppState> =>
     };
   });
 
-/** True when the latest run was made with a different graph than the current one. */
+/** True when the latest run was made with a different diagram than the current one. */
 export const isRunStale = (s: AppState, id: string): boolean => {
   const run = s.runs[id];
   const project = s.projects[id];
@@ -207,6 +212,6 @@ export const isRunStale = (s: AppState, id: string): boolean => {
   const mission = MISSIONS[project.missionId as MissionId];
   const scenario = SCENARIOS[mission.scenarioId as ScenarioId];
   return (
-    computeInputHash({ graph: project.graph, scenario, seed: mission.seed }) !== run.simulation.inputHash
+    computeInputHash({ diagram: project.diagram, scenario, seed: mission.seed }) !== run.simulation.inputHash
   );
 };

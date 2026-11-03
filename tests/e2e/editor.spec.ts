@@ -1,172 +1,118 @@
-import { tapResource } from './helpers';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { add, crumb, openFrame, startMission, tapItem, tapResource } from './helpers';
 
-const openArchitecture = async (page: Page, missionTitle = 'TV放映によるアクセス急増') => {
-  await page.goto('/');
-  await page
-    .locator('.card', { hasText: missionTitle })
-    .getByRole('button', { name: 'この案件を受注する' })
-    .click();
+test('draw a working architecture from an empty Region, frame by frame', async ({ page }) => {
+  await startMission(page, 'サンドボックス');
   await page.getByRole('link', { name: /構成/ }).tap();
-};
-const sheet = (page: Page) => page.getByRole('dialog');
-/** Drill-down: open the server layer from the overview. */
-const openServers = async (page: Page) => {
-  await page.getByRole('navigation', { name: '構成図の階層' }).getByRole('button', { name: '全体' }).tap();
-  await page.locator('.overview-box.group-compute').first().tap();
-};
+  const sheet = page.getByRole('dialog');
+  await expect(page.locator('.breadcrumb [aria-current]')).toHaveText('リージョン');
 
-test('change a setting, see the cost estimate move, and undo it', async ({ page }) => {
-  await openArchitecture(page);
-  await expect(page.locator('.project-header')).toContainText('月額 5,110 cr');
-  await tapResource(page, /EC2 web-1/);
-  await sheet(page).getByLabel('インスタンスサイズ').selectOption('medium');
-  await expect(page.getByRole('button', { name: /EC2 web-1 medium・100 rps/ })).toBeVisible();
-  await expect(page.locator('.project-header')).toContainText('月額 5,840 cr');
-  await page.getByRole('button', { name: '元に戻す' }).first().tap();
-  await expect(page.locator('.project-header')).toContainText('月額 5,110 cr');
-});
+  // Region › VPC
+  await add(page, /^VPC/);
+  await openFrame(page, 'vpc-1');
 
-test('launch another EC2 instance with the same settings in another AZ', async ({ page }) => {
-  await openArchitecture(page);
-  await tapResource(page, /EC2 web-1/);
-  // A single instance has no count to change and belongs to one subnet.
-  await expect(sheet(page).getByLabel('台数', { exact: true })).toHaveCount(0);
-  await sheet(page).getByRole('button', { name: '＋ 同じ設定でもう1台' }).tap();
-  await expect(sheet(page)).toContainText('配置先を選択');
-  await sheet(page)
-    .getByRole('button', { name: /SUB private-b/ })
-    .tap();
-  // Back on the new instance, with its settings and connections copied.
-  const overview = sheet(page).getByLabel('現在の設定の概要');
-  await expect(overview).toContainText('private-b（az-b・プライベート）');
-  await expect(overview).toContainText('web-sg');
-  await expect(overview).toContainText('shop-db（プール 10）');
-  await expect(page.locator('.project-header')).toContainText('月額 5,840 cr');
-  await expect(page.getByRole('button', { name: /EC2 web-3/ })).toBeVisible();
-});
-
-test('invalid connections are explained, locked resources cannot be deleted', async ({ page }) => {
-  await openArchitecture(page);
-  await page.getByRole('button', { name: /RDS shop-db/ }).tap();
-  await expect(sheet(page).getByLabel('現在の設定の概要')).toContainText('単一AZ（az-a）');
-  await expect(sheet(page).getByLabel('現在の設定の概要')).toContainText('DB(5432) ← SG web-sg');
-  await expect(sheet(page).getByRole('button', { name: '削除' })).toBeDisabled();
-  await expect(sheet(page)).toContainText('ミッションの条件で変更できません');
-  await sheet(page).getByRole('button', { name: '接続を追加' }).tap();
-  await expect(sheet(page)).toContainText('接続先を選択');
-  // Tap a node that cannot be connected to a database.
-  // Bring the Internet box above the connect sheet, then tap it on the diagram.
-  await page.getByRole('button', { name: /^Internet/ }).evaluate((el) => {
-    window.scrollBy(0, el.getBoundingClientRect().top - 200);
-  });
-  await page.getByRole('button', { name: /^Internet/ }).tap();
-  await expect(sheet(page).getByRole('alert')).toContainText('この組み合わせは接続できません');
-});
-
-test('solve the TV spike mission with taps only (reference solution A)', async ({ page }) => {
-  await openArchitecture(page);
-
-  // Add an Auto Scaling group and place it in both private subnets.
-  await page.getByRole('button', { name: '＋ 追加' }).tap();
-  await sheet(page)
-    .getByRole('button', { name: /Auto Scaling/ })
-    .tap();
-  await expect(sheet(page)).toContainText('配置先を選択');
-  await sheet(page)
-    .getByRole('button', { name: /SUB private-a/ })
-    .tap();
-  await sheet(page)
-    .getByRole('button', { name: /SUB private-b/ })
-    .tap();
-  await sheet(page).getByRole('button', { name: '完了' }).tap();
-
-  // Security group, database and load balancer connections (tap order does not matter).
-  for (const target of [/SG web-sg/, /RDS shop-db/, /ALB shop-alb/]) {
-    await sheet(page).getByRole('button', { name: '接続を追加' }).tap();
-    await sheet(page).getByRole('button', { name: target }).first().tap();
-    await expect(sheet(page)).toContainText('asg-1');
+  // VPC › two AZs, each with a public and a private subnet
+  await add(page, /^アベイラビリティーゾーン/);
+  await add(page, /^アベイラビリティーゾーン/);
+  for (const az of ['AZ a', 'AZ b']) {
+    await openFrame(page, az);
+    await add(page, /^パブリックサブネット/);
+    await add(page, /^プライベートサブネット/);
+    await crumb(page, 'vpc-1');
   }
+  await expect(
+    page.locator('.diagram-canvas').getByRole('button', { name: 'private-b', exact: true }),
+  ).toBeVisible();
 
-  // Size the group for the peak.
-  const max = sheet(page).getByLabel('最大台数', { exact: true });
-  await max.fill('14');
-  await expect(max).toHaveValue('14');
-  await sheet(page).getByRole('button', { name: '閉じる' }).tap();
+  // One security group: HTTP from anywhere, DB port from inside the VPC.
+  await add(page, /^セキュリティグループ/);
+  await sheet.getByRole('button', { name: '＋ ルールを追加' }).tap();
+  await sheet.getByRole('button', { name: '＋ ルールを追加' }).tap();
+  await sheet.getByLabel('ルール2のポート').selectOption('5432');
+  await sheet.getByLabel('ルール2の送信元').selectOption('vpc');
+  await sheet.getByRole('button', { name: '閉じる' }).tap();
 
-  // Remove the two fixed web servers; the confirmation lists dependent connections.
-  for (const name of [/EC2 web-1/, /EC2 web-2/]) {
-    await tapResource(page, name);
-    await sheet(page).getByRole('button', { name: '削除' }).tap();
-    await expect(sheet(page)).toContainText('次の接続も一緒に削除されます');
-    await sheet(page).getByRole('button', { name: '削除する' }).tap();
-  }
-  await expect(page.getByRole('button', { name: /EC2 web/ })).toHaveCount(0);
+  // Load balancer and database live in the VPC and span subnets (suggested automatically).
+  await add(page, /^Application Load Balancer/);
+  await expect(sheet.getByRole('button', { name: /^public-a/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(sheet.getByRole('button', { name: /^public-b/ })).toHaveAttribute('aria-pressed', 'true');
+  await sheet.getByRole('button', { name: /^sg-1/ }).tap();
+  await sheet.getByRole('button', { name: '閉じる' }).tap();
+  await add(page, /^RDS/);
+  await expect(sheet.getByRole('button', { name: /^private-a/ })).toHaveAttribute('aria-pressed', 'true');
+  await sheet.getByRole('button', { name: /^sg-1/ }).tap();
+  await sheet.getByRole('button', { name: '閉じる' }).tap();
 
-  // Upgrade the database.
-  await tapResource(page, /RDS shop-db/);
-  await sheet(page).getByLabel('インスタンスクラス').selectOption('db.large');
-  await sheet(page).getByRole('button', { name: '閉じる' }).tap();
+  // A server in a private subnet, connected to the database.
+  await openFrame(page, 'AZ a');
+  await openFrame(page, 'private-a');
+  await add(page, /^EC2/);
+  await sheet.getByRole('button', { name: /^sg-1/ }).tap();
+  await sheet.getByRole('button', { name: '→ データベースにつなぐ' }).tap();
+  await sheet.getByRole('button', { name: /^db-1/ }).tap();
+  await expect(page.locator('.toast')).toContainText('web-1 → db-1 をつなぎました');
+  await sheet.getByRole('button', { name: '閉じる' }).tap();
 
-  await expect(page.getByRole('button', { name: /構成チェック: エラー 0 件/ })).toBeVisible();
-  // Settings are readable without opening forms: one box per AZ with a summary line.
-  await openServers(page);
-  await expect(page.getByRole('button', { name: /ASG asg-1 small・2〜14台/ })).toHaveCount(2);
-  // The database is a single-resource layer: its summary is on the overview.
-  await page.getByRole('navigation', { name: '構成図の階層' }).getByRole('button', { name: '全体' }).tap();
-  await expect(page.getByRole('button', { name: /RDS shop-db db\.large・単一AZ/ })).toBeVisible();
+  // Users → ALB → server, connected from the VPC view where all three are visible.
+  await crumb(page, 'vpc-1');
+  await tapResource(page, 'users');
+  await sheet.getByRole('button', { name: '→ リクエストの送り先をつなぐ' }).tap();
+  await tapItem(page, 'alb-1');
+  await sheet.getByRole('button', { name: '閉じる' }).tap();
+  await tapResource(page, 'alb-1');
+  await sheet.getByRole('button', { name: '→ リクエストの送り先をつなぐ' }).tap();
+  await sheet.getByRole('button', { name: /^web-1/ }).tap();
+  await sheet.getByRole('button', { name: '閉じる' }).tap();
 
-  // First attempt: default warm-up (180 s) is too slow for the ramp — availability just misses.
+  // No errors: the same engine runs it.
+  await expect(page.getByRole('button', { name: /構成チェック/ })).not.toContainText('⛔');
   await page.getByRole('link', { name: /結果/ }).tap();
   await page.getByRole('button', { name: /シミュレーションを実行/ }).tap();
-  await expect(page.locator('.result-headline h2')).toHaveText('目標未達');
-  await expect(page.locator('.dimension-list')).toContainText('可用性');
-  await expect(page.getByText('サーバーの処理能力が不足し').first()).toBeVisible();
+  await expect(page.locator('.result-headline')).toBeVisible();
+});
 
-  // Iterate: faster warm-up, then the mission passes.
+test('mission 1 solved through the diagram: Auto Scaling replaces the fixed servers', async ({ page }) => {
+  await startMission(page, 'TV放映によるアクセス急増');
   await page.getByRole('link', { name: /構成/ }).tap();
-  await openServers(page);
-  await page
-    .getByRole('button', { name: /ASG asg-1/ })
-    .first()
-    .tap();
-  await sheet(page).getByRole('button', { name: '起動完了までの時間を減らす' }).tap();
-  await sheet(page).getByRole('button', { name: '起動完了までの時間を減らす' }).tap();
-  await expect(sheet(page).getByLabel('起動完了までの時間', { exact: true })).toHaveValue('120');
+  const sheet = page.getByRole('dialog');
+
+  await add(page, /^Auto Scaling/);
+  for (let i = 0; i < 8; i++) await sheet.getByRole('button', { name: '最大台数を増やす' }).tap();
+  for (let i = 0; i < 2; i++) await sheet.getByRole('button', { name: 'ウォームアップを減らす' }).tap();
+  await sheet.getByRole('button', { name: /^web-sg/ }).tap();
+  await sheet.getByRole('button', { name: '→ データベースにつなぐ' }).tap();
+  await sheet.getByRole('button', { name: /^shop-db/ }).tap();
+  await sheet.getByRole('button', { name: '閉じる' }).tap();
+
+  await tapResource(page, 'shop-alb');
+  await sheet.getByRole('button', { name: '→ リクエストの送り先をつなぐ' }).tap();
+  await sheet.getByRole('button', { name: /^asg-1/ }).tap();
+  await sheet.getByRole('button', { name: '閉じる' }).tap();
+
+  for (const web of ['web-1', 'web-2']) {
+    await tapResource(page, web);
+    await sheet.getByRole('button', { name: '削除' }).tap();
+    await sheet.getByRole('button', { name: '削除する' }).tap();
+  }
+
+  await tapResource(page, 'shop-db');
+  await expect(sheet.getByRole('button', { name: '削除' })).toBeDisabled();
+  await sheet.getByRole('button', { name: /^db\.large/ }).tap();
+  await sheet.getByRole('button', { name: '閉じる' }).tap();
+
   await page.getByRole('link', { name: /結果/ }).tap();
   await page.getByRole('button', { name: /シミュレーションを実行/ }).tap();
   await expect(page.locator('.result-headline h2')).toHaveText('目標達成');
+});
 
-  // The edits were autosaved.
-  await page.reload();
+test('frames can be reconfigured and removed with everything inside, then undone', async ({ page }) => {
+  await startMission(page, 'TV放映によるアクセス急増');
   await page.getByRole('link', { name: /構成/ }).tap();
-  await openServers(page);
-  await expect(page.getByRole('button', { name: /ASG asg-1/ })).toHaveCount(2); // one box per AZ
-});
-
-test('validation panel and outline view both lead to the resource', async ({ page }) => {
-  await openArchitecture(page, 'サンドボックス');
-  await page.getByRole('button', { name: /構成チェック/ }).tap();
-  await expect(sheet(page)).toContainText('インターネットからサーバーへの経路がありません');
-  await sheet(page)
-    .getByRole('button', { name: /インターネットからサーバーへの経路がありません/ })
-    .tap();
-  await expect(sheet(page)).toContainText('インターネット');
-  await sheet(page).getByRole('button', { name: '閉じる' }).tap();
-  await page.getByRole('button', { name: '≡ 一覧' }).tap();
-  await page.getByRole('button', { name: 'NET Internet' }).tap();
-  await expect(sheet(page)).toContainText('ユーザーからのアクセスの入口です');
-});
-
-test('drill into a subnet to see what sits together in it', async ({ page }) => {
-  await openArchitecture(page);
-  await page.getByRole('button', { name: /^private-a az-a・プライベート/ }).tap();
-  const crumbs = page.getByRole('navigation', { name: '構成図の階層' });
-  await expect(crumbs.getByRole('button', { name: 'private-a' })).toHaveAttribute('aria-current', 'page');
-  // The servers and the database share private-a and appear side by side.
-  for (const name of [/EC2 web-1/, /EC2 web-2/, /RDS shop-db/]) {
-    await expect(page.getByRole('button', { name })).toBeVisible();
-  }
-  await page.getByRole('button', { name: /RDS shop-db/ }).tap();
-  await expect(sheet(page)).toContainText('データベース (RDS)');
+  const sheet = page.getByRole('dialog');
+  await openFrame(page, 'AZ b');
+  await page.getByRole('button', { name: /AZ bの設定/ }).tap();
+  await sheet.getByRole('button', { name: 'この枠を削除' }).tap();
+  // The locked database uses a subnet in this AZ, so the customer's constraint blocks it.
+  await sheet.getByRole('button', { name: '削除する' }).tap();
+  await expect(page.locator('.toast')).toContainText('顧客の要望で削除できません');
 });

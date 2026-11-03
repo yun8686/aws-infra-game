@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { useAppStore } from '../../app/AppContext';
 import { navigate } from '../../app/router';
-import { MISSIONS, type MissionId } from '../../data/missions';
-import { estimateMonthlyCost } from '../../domain/simulation/cost';
+import { MISSIONS, type MissionId } from '../../content';
+import { estimateMonthlyCost } from '../../sim';
 import { credits } from '../../shared/ui/format';
 import type { SaveState } from '../../app/store/projectStore';
 
@@ -16,7 +16,7 @@ const SAVE_LABEL: Record<SaveState, string> = {
 export function ProjectHeader({ projectId }: { readonly projectId: string }) {
   const project = useAppStore((s) => s.projects[projectId]);
   const saveState = useAppStore((s) => s.saveState[projectId] ?? 'saved');
-  const estimate = useMemo(() => (project ? estimateMonthlyCost(project.graph) : 0), [project]);
+  const estimate = useMemo(() => (project ? estimateMonthlyCost(project.diagram) : 0), [project]);
   if (!project) return null;
   const budget = MISSIONS[project.missionId as MissionId]?.objectives.monthlyBudget ?? 0;
   const ratio = budget > 0 ? estimate / budget : 0;

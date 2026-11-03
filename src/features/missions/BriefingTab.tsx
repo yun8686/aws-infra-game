@@ -1,12 +1,12 @@
 import { useAppStore } from '../../app/AppContext';
 import { navigate } from '../../app/router';
-import { MISSION_TEXT_JA } from '../../data/i18n/ja/missions';
-import { SERVICE_TEXT_JA } from '../../data/i18n/ja/services';
-import { MISSIONS, type MissionId } from '../../data/missions';
-import { SCENARIOS, type ScenarioId } from '../../data/scenarios';
+import { MISSION_TEXT_JA } from '../../i18n';
+import { RESOURCE_LONG_LABEL } from '../../i18n';
+import { MISSIONS, type MissionId } from '../../content';
+import { SCENARIOS, type ScenarioId } from '../../content';
 import { credits, ms, percent } from '../../shared/ui/format';
 import { WorkloadChart } from './WorkloadChart';
-import { appName } from '../../data/i18n/ja/apps';
+import { appName } from '../../i18n';
 import { GuideCard } from '../../shared/ui/GuideCard';
 
 export function BriefingTab({ projectId }: { readonly projectId: string }) {
@@ -17,7 +17,7 @@ export function BriefingTab({ projectId }: { readonly projectId: string }) {
   const text = MISSION_TEXT_JA[missionId];
   const scenario = SCENARIOS[mission.scenarioId as ScenarioId];
   const o = mission.objectives;
-  const locked = Object.entries(mission.constraints.lockedNodes ?? {});
+  const locked = mission.constraints.lockedIds ?? [];
 
   return (
     <div className="tab-content">
@@ -25,7 +25,7 @@ export function BriefingTab({ projectId }: { readonly projectId: string }) {
         <ol>
           <li>顧客の依頼と達成条件を読みます。</li>
           <li>「結果」タブで、今の構成のままシミュレーションしてみます。</li>
-          <li>「構成」タブで構成を直し、もう一度実行します。</li>
+          <li>「構成」タブで構成図を直し、もう一度実行します。</li>
           <li>「監視」タブで、いつ・どこで問題が起きたかを確認できます。</li>
         </ol>
       </GuideCard>
@@ -103,13 +103,12 @@ export function BriefingTab({ projectId }: { readonly projectId: string }) {
           <>
             <h3>制約</h3>
             <ul className="bullet-list">
-              {locked.map(([id, lock]) => {
-                const node = project.graph.nodes[id];
-                const type = node?.serviceType as keyof typeof SERVICE_TEXT_JA | undefined;
+              {locked.map((id) => {
+                const r = project.diagram.resources[id];
                 return (
                   <li key={id}>
-                    {node?.name ?? id}（{type ? SERVICE_TEXT_JA[type]?.name : ''}）は
-                    {lock === 'no-delete' ? '削除できません（設定変更は可能）' : '変更できません'}
+                    {r?.name ?? id}（{r ? RESOURCE_LONG_LABEL[r.type] : ''}
+                    ）は削除できません（設定変更は可能）
                   </li>
                 );
               })}

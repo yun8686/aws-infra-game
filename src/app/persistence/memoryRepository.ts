@@ -1,4 +1,4 @@
-import { parseProject, type Project } from '../../domain/projects/project';
+import { parseProject, type Project } from '../../game';
 import type { LoadResult, ProjectRepository } from './repository';
 
 /** In-memory repository that round-trips through JSON like a real store would. */

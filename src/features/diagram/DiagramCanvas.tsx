@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { Diagram } from '../../model';
 import { GROUP_ICONS, RESOURCE_ICONS, type IconSource } from './icons';
-import { RESOURCE_LABEL, TIER_LABEL, frameTitle } from './labels';
+import { RESOURCE_LABEL, TIER_LABEL, frameTitle } from '../../i18n/resources';
 import { ICON, layoutView, type ArrowShape, type BoxShape, type ItemShape } from './layout';
 import './diagram.css';
 
@@ -159,12 +159,18 @@ function Item({
   const desc = `${RESOURCE_LABEL[item.type]}${issue === 'error' ? '。エラーあり' : issue === 'warning' ? '。警告あり' : ''}${badge ? `。${badge.text}` : ''}`;
   if (item.variant === 'band') {
     return (
-      <g className={classes} role="button" aria-label={item.label} onClick={click}>
+      <g
+        className={classes}
+        role="button"
+        aria-label={`${item.label} ${badge ? badge.text : RESOURCE_LABEL[item.type]}`}
+        onClick={click}
+      >
         <desc>{desc}</desc>
         <rect className="band-rect" x={item.x} y={item.y} width={item.w} height={item.h} rx={6} />
         <Icon src={RESOURCE_ICONS[item.type]} x={item.x + 8} y={item.y + 8} size={28} />
         <text className="band-label" x={item.x + 44} y={item.y + 19}>
-          {item.label}
+          {/* Trailing space keeps the text content "name type", matching the accessible name. */}
+          {`${item.label} `}
         </text>
         <text className="band-type" x={item.x + 44} y={item.y + 35} aria-hidden="true">
           {badge ? badge.text : RESOURCE_LABEL[item.type]}
@@ -179,7 +185,12 @@ function Item({
   const iy = item.y + 4;
   const lines = labelLines(item.label);
   return (
-    <g className={classes} role="button" aria-label={lines.join('')} onClick={click}>
+    <g
+      className={classes}
+      role="button"
+      aria-label={badge ? `${lines.join('')} ${badge.text}` : lines.join('')}
+      onClick={click}
+    >
       <desc>{desc}</desc>
       <rect className="item-hit" x={item.x + 2} y={item.y} width={item.w - 4} height={item.h} rx={6} />
       <Icon src={RESOURCE_ICONS[item.type]} x={ix} y={iy} size={ICON} />
@@ -191,7 +202,7 @@ function Item({
           y={iy + ICON + 14 + i * 13}
           textAnchor="middle"
         >
-          {line}
+          {badge && i === lines.length - 1 ? `${line} ` : line}
         </text>
       ))}
       {badge && (
