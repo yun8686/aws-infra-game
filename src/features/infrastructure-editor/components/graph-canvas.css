@@ -96,3 +96,44 @@
   stroke: var(--selected);
   stroke-dasharray: 4 2;
 }
+.graph-viewport {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+}
+.zone {
+  cursor: pointer;
+}
+.zone.is-selected rect {
+  stroke: var(--selected);
+  stroke-width: 2.5;
+}
+.edge-hit {
+  stroke: transparent;
+  stroke-width: 18;
+  cursor: pointer;
+}
+.edge-group.is-selected .edge {
+  stroke: var(--selected);
+  stroke-width: 3;
+}
+.edge-group:focus {
+  outline: none;
+}
+.is-candidate rect {
+  stroke: var(--ok) !important;
+  stroke-width: 3 !important;
+  stroke-dasharray: none !important;
+}
+.is-dimmed {
+  opacity: 0.35;
+}
+.issue-dot.issue-error {
+  fill: var(--bad);
+}
+.issue-dot.issue-warning {
+  fill: var(--warn);
+}
+.zone:focus {
+  outline: none;
+}

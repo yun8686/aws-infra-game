@@ -40,4 +40,5 @@ npm run sim -- --mission tv-spike                                  # ミッシ�
 - シミュレーションの計算式とバランス値は `docs/SIMULATION_MODEL.md` を参照してください。
 - ミッションの定義と採点ルールは `docs/SCORING.md` を参照してください。
 - 案件データはブラウザの IndexedDB に自動保存されます（サーバーには送信しません）。
+- 構成エディタの操作仕様は `docs/EDITOR_UX.md` を参照してください。
 - 承認済みの実装方針は `docs/IMPLEMENTATION_PROPOSAL.md` と `design/DECISIONS.md` にあります。

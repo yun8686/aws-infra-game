@@ -7,7 +7,14 @@ import type { InfrastructureGraph } from '../../src/domain/graph/types';
 import { runMission, type MissionRun } from '../../src/domain/missions';
 import { validateGraph } from '../../src/domain/validation';
 import { buildWebStackFromBaseline } from '../fixtures/builders';
-import { overProvisioned, setConfig, solutionA, solutionB } from '../fixtures/solutions';
+import {
+  ASG_SMALL,
+  overProvisioned,
+  replaceWebWithAutoScaling,
+  setConfig,
+  solutionA,
+  solutionB,
+} from '../fixtures/solutions';
 
 const mission = MISSIONS['tv-spike'];
 const play = (graph: InfrastructureGraph): MissionRun => {
@@ -42,6 +49,18 @@ describe('mission: TV traffic spike — reference solutions', () => {
   it('reference solution B (Auto Scaling medium + db.large) passes with a different architecture', () => {
     const r = play(solutionB(start, policy));
     expect(r.evaluation.passed).toBe(true);
+  });
+
+  it('Auto Scaling with the default 180 s warm-up narrowly misses availability (iteration lesson)', () => {
+    const g = setConfig(
+      replaceWebWithAutoScaling(start, { ...ASG_SMALL, warmupSec: 180 }, policy).graph,
+      'rds-1',
+      { instanceClass: 'db.large' },
+      policy,
+    );
+    const r = play(g);
+    expect(failed(r)).toEqual(['availability']);
+    expect(r.evaluation.keyBottlenecks[0]?.cause).toBe('compute_saturated');
   });
 
   it('static over-provisioning meets the SLOs but fails the budget', () => {

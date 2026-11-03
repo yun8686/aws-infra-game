@@ -13,6 +13,8 @@ import {
 } from '../../domain/graph/history';
 import type { InfrastructureGraph } from '../../domain/graph/types';
 import { runMission, type MissionRun } from '../../domain/missions/runMission';
+import { missionEditPolicy } from '../../domain/missions/mission';
+import type { CommandResult, EditPolicy } from '../../domain/graph/commands';
 import { createProject, summarizeRun, type Project } from '../../domain/projects/project';
 import type { SimulationError } from '../../domain/simulation/engine';
 import type { ProjectRepository } from '../persistence/repository';
@@ -38,6 +40,11 @@ export interface AppState {
   init(): Promise<void>;
   startProject(missionId: MissionId): string;
   applyGraph(projectId: string, next: InfrastructureGraph): void;
+  /** Run an edit command with the mission's edit policy; the graph changes only if it succeeds. */
+  edit<E>(
+    projectId: string,
+    command: (graph: InfrastructureGraph, policy: EditPolicy) => CommandResult<E>,
+  ): CommandResult<E> | undefined;
   undo(projectId: string): void;
   redo(projectId: string): void;
   runSimulation(projectId: string): { ok: true; run: MissionRun } | { ok: false; error: SimulationError };
@@ -115,6 +122,15 @@ export const createAppStore = (deps: AppDeps): StoreApi<AppState> =>
         const history = get().histories[id];
         if (!history) return;
         setGraphFromHistory(id, pushHistory(history, next));
+      },
+
+      edit(id, command) {
+        const project = get().projects[id];
+        if (!project) return undefined;
+        const mission = MISSIONS[project.missionId as MissionId];
+        const result = command(project.graph, mission ? missionEditPolicy(mission) : {});
+        if (result.ok) get().applyGraph(id, result.value.graph);
+        return result;
       },
 
       undo(id) {
