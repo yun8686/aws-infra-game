@@ -14,3 +14,13 @@ describe('Japanese finding text', () => {
     expect(formatFindingText('最大 {max} / {x}', { max: 3 })).toBe('最大 3 / {x}');
   });
 });
+
+describe('Japanese bottleneck text', () => {
+  it('covers every bottleneck cause', async () => {
+    const { BOTTLENECK_TEXT_JA } = await import('../../src/data/i18n/ja/bottlenecks');
+    for (const t of Object.values(BOTTLENECK_TEXT_JA)) {
+      expect(t.message && t.explanation && t.remediation).toBeTruthy();
+    }
+    expect(Object.keys(BOTTLENECK_TEXT_JA)).toHaveLength(7);
+  });
+});

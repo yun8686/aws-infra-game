@@ -30,8 +30,10 @@ Claude Codeに次のように依頼してください。
 npm install
 npm run dev      # 開発サーバー
 npm run check    # 型チェック・lint・整形チェック・テスト
+npm run sim -- --scenario tv-spike --set ec2-1.instanceCount=12   # シミュレーションをコマンドラインで実行
 ```
 
 - ドメインロジック（`src/domain/`）は UI に依存しない純粋な TypeScript です。
 - サービスごとのモデルと簡略化の内容は `docs/SERVICE_MODELS.md` を参照してください。
+- シミュレーションの計算式とバランス値は `docs/SIMULATION_MODEL.md` を参照してください。
 - 承認済みの実装方針は `docs/IMPLEMENTATION_PROPOSAL.md` と `design/DECISIONS.md` にあります。
