@@ -230,7 +230,7 @@ const PORT_LABEL: Record<string, string> = {
 const PORT_OPTIONS = ['80', '443', '5432', '22', '3389', 'all'] as const;
 
 const ruleSummary = (r: SgRule) => {
-  const src = r.source.kind === 'anywhere' ? '全世界' : r.source.kind === 'vpc' ? 'VPC内' : 'SG';
+  const src = r.source.kind === 'anywhere' ? 'ALL' : r.source.kind === 'vpc' ? 'VPC内' : 'SG';
   return `${r.port === 'all' ? '全ポート' : r.port}←${src}`;
 };
 
@@ -348,7 +348,7 @@ function RulesField({
             value={sourceValue(rule)}
             onChange={(e) => update(i, { ...rule, source: parseSource(e.target.value) })}
           >
-            <option value="anywhere">全世界（0.0.0.0/0）</option>
+            <option value="anywhere">ALL（0.0.0.0/0）</option>
             <option value="vpc">VPC 内</option>
             {others.map((o) => (
               <option key={o.value} value={`sg:${o.value}`}>

@@ -145,17 +145,17 @@ export const FINDING_TEXT_JA: { readonly [K in FindingCode]: FindingText } = {
     remediation: 'サーバー（EC2 / Auto Scaling）の「動かすアプリ」で選んでください。',
   },
   'security.db_port_open_to_internet': {
-    message: 'データベースのポートが全世界に公開されています',
+    message: 'データベースのポートが ALL（0.0.0.0/0）に公開されています',
     explanation: '誰でもデータベースへの接続を試みられる状態です。重大なリスクです。',
     remediation: '送信元をアプリケーションサーバーのセキュリティグループに限定してください。',
   },
   'security.all_ports_open_to_internet': {
-    message: 'すべてのポートが全世界に公開されています',
+    message: 'すべてのポートが ALL（0.0.0.0/0）に公開されています',
     explanation: '不要なサービスまで外部から到達可能になります。重大なリスクです。',
     remediation: '必要なポートだけを許可してください。',
   },
   'security.admin_port_open_to_internet': {
-    message: '管理用ポート（{port}）が全世界に公開されています',
+    message: '管理用ポート（{port}）が ALL（0.0.0.0/0）に公開されています',
     explanation: '不正ログインの試行を受けやすくなります。',
     remediation: '送信元を限定するか、ルールを削除してください。',
   },
