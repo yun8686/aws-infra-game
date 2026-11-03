@@ -1,16 +1,16 @@
 import { useMemo } from 'react';
 import { SERVICE_TEXT_JA } from '../../../data/i18n/ja/services';
+import { readConfig } from '../../../domain/catalog/catalog';
 import { isServiceTypeId } from '../../../domain/catalog/ids';
-import type { AvailabilityZone } from '../../../domain/catalog/services';
 import type { InfrastructureGraph, NodeId } from '../../../domain/graph/types';
-import { layoutAz } from '../layout/azLayout';
+import { layoutSubnets } from '../layout/subnetLayout';
 import { appsLine, partSummary } from '../summary';
 import type { Highlight, NodeMetricBadge } from './GraphCanvas';
 import './graph-canvas.css';
 
-export interface AzCanvasProps {
+export interface SubnetCanvasProps {
   readonly graph: InfrastructureGraph;
-  readonly az: AvailabilityZone;
+  readonly subnetIds: readonly NodeId[];
   readonly selectedId?: NodeId | undefined;
   readonly onSelect?: ((id: NodeId | undefined) => void) | undefined;
   readonly highlight?: Readonly<Record<NodeId, Highlight>> | undefined;
@@ -23,10 +23,10 @@ export interface AzCanvasProps {
 const LEVEL_ICON = { ok: '✓', warn: '⚠', bad: '⛔' } as const;
 const category = (t: string) => t.split('.')[0] ?? 'unknown';
 
-/** One AZ: its subnets with the resources in each, side by side (no traffic arrows). */
-export function AzCanvas({
+/** One subnet with the resources placed in it, side by side (no traffic arrows). */
+export function SubnetCanvas({
   graph,
-  az,
+  subnetIds,
   selectedId,
   onSelect,
   highlight,
@@ -34,8 +34,11 @@ export function AzCanvas({
   related,
   metrics,
   showApps = false,
-}: AzCanvasProps) {
-  const layout = useMemo(() => layoutAz(graph, az, { boxHeight: showApps ? 79 : 64 }), [graph, az, showApps]);
+}: SubnetCanvasProps) {
+  const layout = useMemo(
+    () => layoutSubnets(graph, subnetIds, { boxHeight: showApps ? 79 : 64 }),
+    [graph, subnetIds, showApps],
+  );
   const stateClass = (id: NodeId) =>
     [
       selectedId === id ? 'is-selected' : '',
@@ -44,7 +47,7 @@ export function AzCanvas({
       related?.has(id) ? 'is-related' : '',
     ].join(' ');
 
-  if (layout.subnets.length === 0) return <p className="muted">この AZ にはサブネットがありません。</p>;
+  if (layout.subnets.length === 0) return <p className="muted">サブネットが見つかりません。</p>;
 
   return (
     <div className="graph-viewport">
@@ -52,36 +55,46 @@ export function AzCanvas({
         className="graph-canvas"
         viewBox={`0 0 ${layout.width} ${layout.height}`}
         role="group"
-        aria-label={`${az} の構成`}
+        aria-label="サブネットの中のリソース"
         onClick={() => onSelect?.(undefined)}
       >
-        {layout.subnets.map((z) => (
-          <g
-            key={z.subnetId}
-            className={`zone zone-subnet ${stateClass(z.subnetId)}`}
-            role="button"
-            tabIndex={0}
-            aria-label={`${z.label}（${z.tier === 'public' ? 'パブリック' : 'プライベート'}サブネット）`}
-            data-node-id={z.subnetId}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect?.(z.subnetId);
-            }}
-          >
-            <rect x={z.x} y={z.y} width={z.width} height={z.height} rx={8} />
-            <text x={z.x + 8} y={z.y + 15}>
-              {z.label}（{z.tier === 'public' ? 'パブリック' : 'プライベート'}）
-            </text>
-          </g>
-        ))}
+        {layout.subnets.map((z) => {
+          const az = readConfig(graph.nodes[z.subnetId], 'network.subnet')?.az ?? '';
+          const tier = z.tier === 'public' ? 'パブリック' : 'プライベート';
+          return (
+            <g
+              key={z.subnetId}
+              className={`zone zone-subnet ${stateClass(z.subnetId)}`}
+              role="button"
+              tabIndex={0}
+              aria-label={`${z.label}（${az}・${tier}サブネット）`}
+              data-node-id={z.subnetId}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect?.(z.subnetId);
+              }}
+            >
+              <rect x={z.x} y={z.y} width={z.width} height={z.height} rx={8} />
+              <text x={z.x + 8} y={z.y + 15}>
+                {z.label}（{az}・{tier}）
+              </text>
+            </g>
+          );
+        })}
+        {layout.resources.length === 0 && (
+          <text className="overview-line" x={layout.width / 2} y={layout.height / 2 + 8} textAnchor="middle">
+            このサブネットにはまだ何も配置されていません
+          </text>
+        )}
         {layout.resources.map((b) => {
           const node = graph.nodes[b.id];
           if (!node) return null;
           const short = isServiceTypeId(node.serviceType) ? SERVICE_TEXT_JA[node.serviceType].short : '?';
+          const az = readConfig(graph.nodes[b.subnetId], 'network.subnet')?.az;
           const summary =
             node.serviceType === 'lb.alb'
               ? 'このサブネットに配置'
-              : partSummary(graph, b.id, { role: b.role, az });
+              : partSummary(graph, b.id, { role: b.role, ...(az ? { az } : {}) });
           const apps = showApps ? appsLine(graph, b.id) : '';
           const metric = metrics?.[b.id];
           const issue = issues?.[b.id];

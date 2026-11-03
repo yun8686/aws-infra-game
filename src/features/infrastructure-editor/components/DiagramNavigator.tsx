@@ -1,10 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { InfrastructureGraph, NodeId } from '../../../domain/graph/types';
 import { buildOverviewGroups, groupContaining, overviewEdges, type OverviewGroup } from '../layout/overview';
 import { GraphCanvas, type GraphCanvasProps } from './GraphCanvas';
 import { OverviewCanvas } from './OverviewCanvas';
-import { AzCanvas } from './AzCanvas';
-import type { AvailabilityZone } from '../../../domain/catalog/services';
+import { SubnetCanvas } from './SubnetCanvas';
 
 export interface DiagramNavigatorProps extends Omit<GraphCanvasProps, 'include' | 'hideTraffic'> {
   readonly graph: InfrastructureGraph;
@@ -23,7 +22,19 @@ type View = { readonly key: 'overview' } | { readonly key: string };
 export function DiagramNavigator({ reveal, preferNetwork, ...canvas }: DiagramNavigatorProps) {
   const { graph, showApps = false, onSelect } = canvas;
   const groups = useMemo(() => buildOverviewGroups(graph, { showApps }), [graph, showApps]);
-  const [view, setView] = useState<View>({ key: 'overview' });
+  const [view, setViewState] = useState<View>({ key: 'overview' });
+  const rootRef = useRef<HTMLDivElement>(null);
+  /** Change view and bring the top of the diagram (breadcrumb) into sight. */
+  const setView = (next: View) => {
+    setViewState(next);
+    requestAnimationFrame(() => {
+      const el = rootRef.current;
+      // Sticky header + toolbar cover about the top 140 px (matches scroll-margin-top in CSS).
+      if (!el || el.getBoundingClientRect().top >= 140) return;
+      const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      el.scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
+    });
+  };
 
   // React to `reveal` / `preferNetwork` changes during render (no effect needed).
   const [seenReveal, setSeenReveal] = useState(reveal?.seq);
@@ -34,13 +45,13 @@ export function DiagramNavigator({ reveal, preferNetwork, ...canvas }: DiagramNa
       g &&
       (g.nodeIds.length > 1 || g.kind === 'network' || g.kind === 'compute' || g.kind === 'unplaced')
     ) {
-      setView({ key: g.key });
+      setViewState({ key: g.key });
     }
   }
   const [seenPrefer, setSeenPrefer] = useState(preferNetwork);
   if (preferNetwork !== seenPrefer) {
     setSeenPrefer(preferNetwork);
-    if (preferNetwork) setView({ key: 'network' });
+    if (preferNetwork) setViewState({ key: 'network' });
   }
 
   const current = view.key === 'overview' ? undefined : groups.find((g) => g.key === view.key);
@@ -63,7 +74,7 @@ export function DiagramNavigator({ reveal, preferNetwork, ...canvas }: DiagramNa
   );
 
   return (
-    <div className="diagram-navigator">
+    <div className="diagram-navigator" ref={rootRef}>
       <nav className="diagram-crumbs" aria-label="構成図の階層">
         <button
           type="button"
@@ -94,7 +105,7 @@ export function DiagramNavigator({ reveal, preferNetwork, ...canvas }: DiagramNa
         />
       ) : (
         <>
-          {effective.kind !== 'network' && effective.kind !== 'az' && (
+          {effective.kind !== 'network' && effective.kind !== 'subnet' && (
             <div className="diagram-context">
               {edges
                 .filter((e) => e.to === effective.key)
@@ -108,10 +119,10 @@ export function DiagramNavigator({ reveal, preferNetwork, ...canvas }: DiagramNa
                 ))}
             </div>
           )}
-          {effective.kind === 'az' ? (
-            <AzCanvas
+          {effective.kind === 'subnet' ? (
+            <SubnetCanvas
               graph={graph}
-              az={effective.title as AvailabilityZone}
+              subnetIds={effective.nodeIds.slice(0, 1)}
               selectedId={canvas.selectedId}
               onSelect={canvas.onSelect}
               highlight={canvas.highlight}

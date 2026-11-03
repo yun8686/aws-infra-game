@@ -158,12 +158,11 @@ test('validation panel and outline view both lead to the resource', async ({ pag
   await expect(sheet(page)).toContainText('ユーザーからのアクセスの入口です');
 });
 
-test('drill into an AZ to see what sits together in each subnet', async ({ page }) => {
+test('drill into a subnet to see what sits together in it', async ({ page }) => {
   await openArchitecture(page);
-  await page.getByRole('button', { name: /^az-a サブネット 2/ }).tap();
+  await page.getByRole('button', { name: /^private-a az-a・プライベート/ }).tap();
   const crumbs = page.getByRole('navigation', { name: '構成図の階層' });
-  await expect(crumbs.getByRole('button', { name: 'az-a' })).toHaveAttribute('aria-current', 'page');
-  await expect(page.getByRole('button', { name: 'private-a（プライベートサブネット）' })).toBeVisible();
+  await expect(crumbs.getByRole('button', { name: 'private-a' })).toHaveAttribute('aria-current', 'page');
   // The servers and the database share private-a and appear side by side.
   for (const name of [/EC2 web-1/, /EC2 web-2/, /RDS shop-db/]) {
     await expect(page.getByRole('button', { name })).toBeVisible();

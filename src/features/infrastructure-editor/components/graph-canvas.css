@@ -261,8 +261,12 @@
   font-weight: 700;
   fill: var(--muted-strong);
 }
-.group-az rect {
+.group-subnet rect {
   stroke: var(--zone-stroke);
   stroke-width: 1.5;
   fill: var(--subnet-fill);
+}
+
+.diagram-navigator {
+  scroll-margin-top: 140px;
 }

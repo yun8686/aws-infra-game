@@ -130,7 +130,7 @@ export function OverviewCanvas({
             g.kind === 'compute' ||
             g.kind === 'unplaced' ||
             g.kind === 'network' ||
-            g.kind === 'az';
+            g.kind === 'subnet';
           return (
             <g
               key={g.key}

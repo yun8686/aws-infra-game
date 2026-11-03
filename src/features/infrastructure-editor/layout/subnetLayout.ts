@@ -1,14 +1,12 @@
 import { readConfig } from '../../../domain/catalog/catalog';
-import type { AvailabilityZone } from '../../../domain/catalog/services';
 import { nodesOfType, sourcesOf } from '../../../domain/graph/graph';
 import { azsOf } from '../../../domain/graph/network';
 import type { InfrastructureGraph, NodeId } from '../../../domain/graph/types';
 import type { PartRole } from './tierLayout';
 
 /**
- * AZ drill-down (ADR 0017 extension): one AZ, its subnets as stacked bands (public first), and the
- * resources placed in each subnet side by side, so a server and a database in the same subnet sit
- * next to each other. No traffic arrows here; the request path lives in the overview.
+ * Subnet drill-down (ADR 0017 extension): the resources placed in a subnet side by side, so a server
+ * and a database in the same subnet sit next to each other. No traffic arrows here; the request path lives in the overview.
  */
 
 export interface AzSubnetZone {
@@ -34,7 +32,6 @@ export interface AzResourceBox {
 }
 
 export interface AzLayout {
-  readonly az: AvailabilityZone;
   readonly width: number;
   readonly height: number;
   readonly subnets: readonly AzSubnetZone[];
@@ -48,9 +45,10 @@ const ORDER: Record<string, number> = {
   'database.rds': 2,
 };
 
-export const layoutAz = (
+/** Subnet drill-down: draw the given subnets (one, normally) with the resources placed in each side by side. */
+export const layoutSubnets = (
   graph: InfrastructureGraph,
-  az: AvailabilityZone,
+  subnetIds: readonly NodeId[],
   options: { readonly width?: number; readonly boxHeight?: number } = {},
 ): AzLayout => {
   const width = options.width ?? 376;
@@ -63,7 +61,7 @@ export const layoutAz = (
   const boxW = (width - margin * 2 - pad * 2 - gap * (cols - 1)) / cols;
 
   const subnets = nodesOfType(graph, 'network.subnet')
-    .filter((s) => readConfig(s, 'network.subnet')?.az === az)
+    .filter((s) => subnetIds.includes(s.id))
     .sort((a, b) => {
       const ta = readConfig(a, 'network.subnet')?.tier === 'public' ? 0 : 1;
       const tb = readConfig(b, 'network.subnet')?.tier === 'public' ? 0 : 1;
@@ -90,6 +88,7 @@ export const layoutAz = (
       width: width - margin * 2,
       height,
     });
+    const az = readConfig(subnet, 'network.subnet')?.az;
     residents.forEach((n, i) => {
       const rds = readConfig(n, 'database.rds');
       const role: PartRole = rds
@@ -112,5 +111,5 @@ export const layoutAz = (
     });
     y += height + 12;
   }
-  return { az, width, height: y + margin - 12, subnets: zones, resources: boxes };
+  return { width, height: y + margin - 12, subnets: zones, resources: boxes };
 };

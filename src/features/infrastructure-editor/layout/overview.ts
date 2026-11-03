@@ -1,6 +1,6 @@
 import { APP_IDS, type AppId } from '../../../domain/catalog/apps';
 import { readConfig } from '../../../domain/catalog/catalog';
-import { listConnections, listNodes, nodesOfType } from '../../../domain/graph/graph';
+import { listConnections, listNodes, nodesOfType, sourcesOf } from '../../../domain/graph/graph';
 import { azsOf, subnetsOf } from '../../../domain/graph/network';
 import type { InfrastructureGraph, NodeId } from '../../../domain/graph/types';
 import { APP_TEXT_JA } from '../../../data/i18n/ja/apps';
@@ -12,7 +12,7 @@ import { LAYOUT } from './tierLayout';
  * apps appear as separate boxes. Each group can be opened to see its resources per AZ.
  */
 
-export type GroupKind = 'entry' | 'lb' | 'compute' | 'database' | 'unplaced' | 'network' | 'az';
+export type GroupKind = 'entry' | 'lb' | 'compute' | 'database' | 'unplaced' | 'network' | 'subnet';
 
 export interface OverviewGroup {
   /** Stable key used for navigation, e.g. `compute:orders` or `lb`. */
@@ -196,25 +196,35 @@ export const buildOverviewGroups = (
       nodeIds: [...vpcs, ...subnets, ...sgs, ...others].map((n) => n.id),
     });
   }
-  // One card per AZ: what lives in each zone, for AZ drill-down (subnets and the resources in them).
-  for (const az of azs) {
-    const azSubnets = subnets.filter((s) => readConfig(s, 'network.subnet')?.az === az);
-    const residents = listNodes(graph).filter(
-      (n) => n.serviceType !== 'network.subnet' && subnetsOf(graph, n.id).some((s) => azSubnets.includes(s)),
+  // One card per subnet (public before private, then by AZ): drill down to what is placed in it.
+  const ordered = [...subnets].sort((a, b) => {
+    const ca = readConfig(a, 'network.subnet');
+    const cb = readConfig(b, 'network.subnet');
+    const ta = ca?.tier === 'public' ? 0 : 1;
+    const tb = cb?.tier === 'public' ? 0 : 1;
+    return ta - tb || ((ca?.az ?? '') < (cb?.az ?? '') ? -1 : 1);
+  });
+  for (const subnet of ordered) {
+    const cfg = readConfig(subnet, 'network.subnet');
+    const residents = sourcesOf(graph, subnet.id, 'placed_in').filter(
+      (n) => n.serviceType !== 'network.subnet',
     );
     const count = (...types: string[]) => residents.filter((n) => types.includes(n.serviceType)).length;
     const parts = [
+      count('lb.alb') ? `ALB ${count('lb.alb')}` : '',
       count('compute.ec2') ? `EC2 ${count('compute.ec2')}` : '',
       count('compute.autoscaling') ? `ASG ${count('compute.autoscaling')}` : '',
       count('database.rds') ? `RDS ${count('database.rds')}` : '',
-      count('lb.alb') ? `ALB ${count('lb.alb')}` : '',
     ].filter(Boolean);
     groups.push({
-      key: `az:${az}`,
-      kind: 'az',
-      title: az,
-      lines: [`サブネット ${azSubnets.length}`, parts.length > 0 ? parts.join('・') : 'リソースなし'],
-      nodeIds: [...azSubnets.map((s) => s.id), ...residents.map((n) => n.id)],
+      key: `subnet:${subnet.id}`,
+      kind: 'subnet',
+      title: subnet.name,
+      lines: [
+        `${cfg?.az ?? '?'}・${cfg?.tier === 'public' ? 'パブリック' : 'プライベート'}`,
+        parts.length > 0 ? parts.join('・') : 'なし',
+      ],
+      nodeIds: [subnet.id, ...residents.map((n) => n.id)],
     });
   }
   return groups;
@@ -226,8 +236,8 @@ export const overviewEdges = (
   groups: readonly OverviewGroup[],
 ): OverviewEdge[] => {
   const groupOf = new Map<NodeId, string>();
-  // AZ cards are another way to slice the same resources; traffic is drawn between layers only.
-  for (const g of groups) if (g.kind !== 'az') for (const id of g.nodeIds) groupOf.set(id, g.key);
+  // Subnet cards are another way to slice the same resources; traffic is drawn between layers only.
+  for (const g of groups) if (g.kind !== 'subnet') for (const id of g.nodeIds) groupOf.set(id, g.key);
   const seen = new Set<string>();
   const out: OverviewEdge[] = [];
   for (const c of listConnections(graph)) {
@@ -243,13 +253,21 @@ export const overviewEdges = (
   return out;
 };
 
-/** The layer a resource belongs to (AZ cards are a different slice, not layers). */
+/** The layer a resource belongs to (subnet cards are a different slice, not layers). */
 export const groupContaining = (
   groups: readonly OverviewGroup[],
   nodeId: NodeId,
-): OverviewGroup | undefined => groups.find((g) => g.kind !== 'az' && g.nodeIds.includes(nodeId));
+): OverviewGroup | undefined => groups.find((g) => g.kind !== 'subnet' && g.nodeIds.includes(nodeId));
 
-const ROW_ORDER: readonly GroupKind[] = ['entry', 'lb', 'compute', 'database', 'unplaced', 'network', 'az'];
+const ROW_ORDER: readonly GroupKind[] = [
+  'entry',
+  'lb',
+  'compute',
+  'database',
+  'unplaced',
+  'network',
+  'subnet',
+];
 
 /** Rows top → bottom; groups in one row sit side by side. Width matches the detailed diagram. */
 export const layoutOverview = (
@@ -271,9 +289,45 @@ export const layoutOverview = (
     const row = groups.filter((g) => g.kind === kind);
     if (row.length === 0) continue;
     if (kind === 'network') y += 10;
-    if (kind === 'az') {
-      labels.push({ x: L.margin, y: y + 4, text: 'AZごとに見る' });
+    if (kind === 'subnet') {
+      labels.push({ x: L.margin, y: y + 4, text: 'サブネットごとに見る' });
       y += 14;
+    }
+    if (kind === 'subnet') {
+      // Grid: columns are AZs, rows are public then private (extra subnets of a cell wrap to a new row).
+      const cfgOf = (g: OverviewGroup) => readConfig(graph.nodes[g.nodeIds[0] ?? ''], 'network.subnet');
+      const zones = [...new Set(row.map((g) => cfgOf(g)?.az ?? ''))].sort();
+      const cols = Math.max(1, zones.length);
+      const cellW = (width - L.margin * 2 - gap * (cols - 1)) / cols;
+      const cellH = 44 + 2 * lineH + (options.statusLine ? lineH + 2 : 0);
+      const grid: (OverviewGroup | undefined)[][] = [];
+      for (const tier of ['public', 'private'] as const) {
+        const tierRows: (OverviewGroup | undefined)[][] = [];
+        for (const g of row.filter((x) => (cfgOf(x)?.tier ?? 'private') === tier)) {
+          const col = Math.max(0, zones.indexOf(cfgOf(g)?.az ?? ''));
+          let target = tierRows.find((cells) => cells[col] === undefined);
+          if (!target) {
+            target = Array.from({ length: cols }, () => undefined);
+            tierRows.push(target);
+          }
+          target[col] = g;
+        }
+        grid.push(...tierRows);
+      }
+      grid.forEach((cells, r) =>
+        cells.forEach((g, c) => {
+          if (g)
+            boxes.push({
+              group: g,
+              x: L.margin + c * (cellW + gap),
+              y: y + r * (cellH + gap),
+              width: cellW,
+              height: cellH,
+            });
+        }),
+      );
+      y += grid.length * (cellH + gap) - gap + rowGap;
+      continue;
     }
     const inside = kind === 'lb' || kind === 'compute' || kind === 'database' || kind === 'unplaced';
     if (inside && vpcTop === undefined) {

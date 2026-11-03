@@ -111,6 +111,6 @@ A scripted novice walkthrough and an exploit search were run before involving pe
 
 | 6 | AZ の中が縦に並ぶと矢印が分かりにくい。ドリルダウンする形式に | ADR 0017 (option chosen: 層ごとにまとめる): layered overview with one arrow per layer pair, servers grouped by app set; open a layer to see its resources per AZ; network view for placement |
 
-| 7 | AZ 単位でドリルダウンできるように（同じサブネットの EC2 と DB が並んで見える） | AZ cards on the overview; the AZ view shows each subnet with its resources side by side (ADR 0017 addendum) |
+| 7 | サブネット単位でドリルダウンできるように（同じサブネットの EC2 と DB が並んで見える） | Subnet cards on the overview (AZ × public/private grid); the subnet view shows its resources side by side (ADR 0017 addendum). A first per-AZ version was replaced per follow-up feedback |
 
 Open questions for human players: whether the four-connection Auto Scaling setup is discoverable without hint 3, whether "availability" (share of minutes with ≤ 5% errors) is understood, and whether 180 s default warm-up feels fair.
