@@ -55,6 +55,8 @@ Findings are structured (`code`, `severity`, `targetIds`, `params`, optional `ri
 - **warning**: runs but suffers (no security group, traffic blocked by a security group, ALB without targets, unreachable server, unused database, server without a database, app not served).
 - **info**: every serving server in one AZ.
 
+The `anywhere` source is shown as **Anywhere-IPv4 (0.0.0.0/0)**, as in the AWS console. Findings about it say the port is allowed from all IPv4 addresses, not "open to the Internet": whether the Internet can actually reach the resource also depends on the subnet, Internet Gateway and public IP, and the rule is flagged either way (it becomes exposed when the placement changes).
+
 Security findings carry a `riskLevel`:
 
 | Code | Risk |

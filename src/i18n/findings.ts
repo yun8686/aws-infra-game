@@ -145,18 +145,21 @@ export const FINDING_TEXT_JA: { readonly [K in FindingCode]: FindingText } = {
     remediation: 'サーバー（EC2 / Auto Scaling）の「動かすアプリ」で選んでください。',
   },
   'security.db_port_open_to_internet': {
-    message: 'データベースのポートが ALL（0.0.0.0/0）に公開されています',
-    explanation: '誰でもデータベースへの接続を試みられる状態です。重大なリスクです。',
+    message: 'データベースのポートが、すべての IPv4 アドレス（0.0.0.0/0）から許可されています',
+    explanation:
+      'セキュリティグループで送信元を制限していないため、どこからでもデータベースへの接続を試みられる状態です。今はインターネットから届かない場所にあっても、構成を変えたときに無防備になります。重大なリスクです。',
     remediation: '送信元をアプリケーションサーバーのセキュリティグループに限定してください。',
   },
   'security.all_ports_open_to_internet': {
-    message: 'すべてのポートが ALL（0.0.0.0/0）に公開されています',
-    explanation: '不要なサービスまで外部から到達可能になります。重大なリスクです。',
+    message: 'すべてのポートが、すべての IPv4 アドレス（0.0.0.0/0）から許可されています',
+    explanation:
+      'セキュリティグループで送信元もポートも制限していないため、不要なサービスまで到達できる状態です。今はインターネットから届かない場所にあっても、構成を変えたときに無防備になります。重大なリスクです。',
     remediation: '必要なポートだけを許可してください。',
   },
   'security.admin_port_open_to_internet': {
-    message: '管理用ポート（{port}）が ALL（0.0.0.0/0）に公開されています',
-    explanation: '不正ログインの試行を受けやすくなります。',
+    message: '管理用ポート（{port}）が、すべての IPv4 アドレス（0.0.0.0/0）から許可されています',
+    explanation:
+      'セキュリティグループで送信元を制限していないため、不正ログインの試行を受けやすくなります。今はインターネットから届かない場所にあっても、構成を変えたときに無防備になります。',
     remediation: '送信元を限定するか、ルールを削除してください。',
   },
   'security.db_in_public_subnet': {
