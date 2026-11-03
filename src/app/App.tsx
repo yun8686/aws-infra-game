@@ -1,37 +1,45 @@
-import { useMemo, useState } from 'react';
-import { TEMPLATES } from '../data/templates';
-import { SERVICE_TEXT_JA } from '../data/i18n/ja/services';
-import { isServiceTypeId } from '../domain/catalog/ids';
-import type { NodeId } from '../domain/graph/types';
-import { GraphCanvas } from '../features/infrastructure-editor/components/GraphCanvas';
+import { useEffect, useMemo } from 'react';
+import { ProjectScreen } from '../features/projects/ProjectScreen';
+import { ProjectsScreen } from '../features/projects/ProjectsScreen';
+import { AppStoreContext } from './AppContext';
+import { IndexedDbProjectRepository } from './persistence/indexedDbRepository';
+import type { ProjectRepository } from './persistence/repository';
+import { useRoute } from './router';
+import { startAutosave } from './store/autosave';
+import { createAppStore } from './store/projectStore';
 import './app.css';
 
-/** Phase 1.5 spike: read-only rendering of the starter template on a phone viewport. */
-export function App() {
-  const graph = useMemo(() => TEMPLATES['ecommerce-starter'](), []);
-  const [selected, setSelected] = useState<NodeId | undefined>();
-  const node = selected ? graph.nodes[selected] : undefined;
-  const text = node && isServiceTypeId(node.serviceType) ? SERVICE_TEXT_JA[node.serviceType] : undefined;
+/** Side-effecting dependencies live at module scope; the domain never reads the clock itself. */
+const systemClock = (): number => Date.now();
+const randomId = (): string => crypto.randomUUID();
 
+export function App({ repo }: { readonly repo?: ProjectRepository }) {
+  const repository = useMemo(() => repo ?? new IndexedDbProjectRepository(), [repo]);
+  const store = useMemo(
+    () => createAppStore({ repo: repository, now: systemClock, newId: randomId }),
+    [repository],
+  );
+
+  useEffect(() => {
+    void store.getState().init();
+    const autosave = startAutosave(store, repository);
+    const flush = () => void autosave.flush();
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onVisibility);
+      autosave.dispose();
+    };
+  }, [store, repository]);
+
+  const route = useRoute();
   return (
-    <div className="app">
-      <header className="app-header">
-        <h1>EC Shop — 現在の構成</h1>
-        <p>学習用の簡略モデルです。実際の AWS の性能・料金を示すものではありません。</p>
-      </header>
-      <main className="canvas-area">
-        <GraphCanvas graph={graph} selectedId={selected} onSelect={setSelected} />
-      </main>
-      <aside className="selection-panel" aria-live="polite">
-        {node ? (
-          <>
-            <strong>{node.name}</strong> — {text?.name}
-            <small>{text?.description}</small>
-          </>
-        ) : (
-          <small>リソースをタップすると詳細を表示します。</small>
-        )}
-      </aside>
-    </div>
+    <AppStoreContext.Provider value={store}>
+      {route.name === 'project' ? <ProjectScreen projectId={route.id} tab={route.tab} /> : <ProjectsScreen />}
+    </AppStoreContext.Provider>
   );
 }

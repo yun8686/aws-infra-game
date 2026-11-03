@@ -33,3 +33,10 @@ export const nodeCostPerHour = (node: InfraNode, runningInstances?: number): num
       return 0;
   }
 };
+
+/**
+ * Steady-state monthly cost estimate of a graph without running a simulation
+ * (fixed groups at their count, Auto Scaling at desired capacity).
+ */
+export const estimateMonthlyCost = (graph: { readonly nodes: Readonly<Record<string, InfraNode>> }): number =>
+  Object.values(graph.nodes).reduce((sum, n) => sum + nodeCostPerHour(n), 0) * BALANCE.hoursPerMonth;
