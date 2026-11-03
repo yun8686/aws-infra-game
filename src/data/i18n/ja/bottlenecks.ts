@@ -36,6 +36,23 @@ export const BOTTLENECK_TEXT_JA: { readonly [K in BottleneckCause]: FindingText 
     explanation: '接続はありますが、受け側のセキュリティグループのルールがこの通信を許可していません。',
     remediation: '送信元とポートに合う受信ルールを追加してください。',
   },
+  unhealthy_target: {
+    message: '障害が起きたサーバーにリクエストが送られ続けました',
+    explanation:
+      'ヘルスチェックが障害を検知するまでの間、または検知の仕組みがない直接公開の構成では、故障したサーバーにもリクエストが届き失敗します。',
+    remediation:
+      'ロードバランサーのヘルスチェック間隔としきい値を見直し、複数台・複数AZで冗長化してください。',
+  },
+  compute_unavailable: {
+    message: '稼働中のサーバーがありません',
+    explanation: 'すべてのサーバーが停止または起動中のため、リクエストを処理できませんでした。',
+    remediation: '複数AZに分散し、Auto Scaling で自動復旧できる構成にしてください。',
+  },
+  db_unavailable: {
+    message: 'データベースが停止していました',
+    explanation: 'データベースの障害または AZ 障害で、データベースを使うリクエストがすべて失敗しました。',
+    remediation: 'Multi-AZ を有効にすると、短時間のフェイルオーバーで復旧できます。',
+  },
   no_healthy_targets: {
     message: 'ロードバランサーに正常な転送先がありません',
     explanation: '転送先がない、または通信が遮断されているため、ヘルスチェックに合格する転送先がありません。',

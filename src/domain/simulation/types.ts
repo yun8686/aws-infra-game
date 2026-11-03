@@ -8,13 +8,44 @@ export type BottleneckCause =
   | 'db_high_utilization'
   | 'db_connections'
   | 'sg_blocked'
-  | 'no_healthy_targets';
+  | 'no_healthy_targets'
+  | 'unhealthy_target'
+  | 'compute_unavailable'
+  | 'db_unavailable';
+
+export type TimelineEventKind =
+  | 'instance_failure'
+  | 'az_outage_start'
+  | 'az_outage_end'
+  | 'db_failure'
+  | 'failure_detected'
+  | 'instance_launched'
+  | 'instance_ready'
+  | 'scale_out'
+  | 'scale_in'
+  | 'db_unavailable'
+  | 'db_failover'
+  | 'db_recovered';
+
+/** Something that happened during the run, for the result timeline. */
+export interface TimelineEvent {
+  readonly minute: number;
+  readonly kind: TimelineEventKind;
+  readonly nodeIds: readonly NodeId[];
+  readonly params?: Readonly<Record<string, string | number>>;
+}
 
 export interface NodeStepMetrics {
   /** Requests (or queries for databases) per second arriving at the node. */
   readonly loadPerSec: number;
   readonly utilization?: number;
+  /** Running (in-service) instances. */
   readonly instances?: number;
+  readonly pendingInstances?: number;
+  readonly failedInstances?: number;
+  /** Auto Scaling desired capacity. */
+  readonly desiredCapacity?: number;
+  readonly available?: boolean;
   readonly capacityPerSec?: number;
   readonly connections?: number;
   readonly maxConnections?: number;
@@ -72,6 +103,7 @@ export interface SimulationResult {
   readonly summary: SimulationSummary;
   readonly cost: CostSummary;
   readonly bottlenecks: readonly Bottleneck[];
+  readonly timeline: readonly TimelineEvent[];
   /** Non-blocking validation findings (warnings, security) carried along for evaluation. */
   readonly findings: readonly Finding[];
 }

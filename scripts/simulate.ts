@@ -1,12 +1,15 @@
 /**
  * Headless simulation runner for balancing and debugging.
  *   npm run sim -- [--template ecommerce-starter] [--scenario tv-spike] [--seed 1] [--set node.path=value ...] [--json]
+ *   npm run sim -- --mission tv-spike [--set ...]   (uses the mission's template, scenario and seed, then evaluates)
  * Example: npm run sim -- --set ec2-1.instanceCount=12 --set rds-1.instanceClass=db.large
  */
 import { SCENARIOS, type ScenarioId } from '../src/data/scenarios';
 import { TEMPLATES, type TemplateId } from '../src/data/templates';
 import { updateNodeConfig } from '../src/domain/graph/commands';
 import { simulate } from '../src/domain/simulation';
+import { MISSIONS, type MissionId } from '../src/data/missions';
+import { evaluateMission } from '../src/domain/scoring/evaluate';
 
 const args = process.argv.slice(2);
 const opt = (name: string, fallback: string) => {
@@ -15,9 +18,15 @@ const opt = (name: string, fallback: string) => {
 };
 const sets = args.flatMap((a, i) => (a === '--set' && args[i + 1] ? [args[i + 1] as string] : []));
 
-const templateId = opt('template', 'ecommerce-starter') as TemplateId;
-const scenarioId = opt('scenario', 'tv-spike') as ScenarioId;
-const seed = Number(opt('seed', '1'));
+const missionId = opt('mission', '') as MissionId | '';
+const mission = missionId ? MISSIONS[missionId] : undefined;
+const templateId = (
+  mission?.initialGraph.kind === 'template'
+    ? mission.initialGraph.templateId
+    : opt('template', 'ecommerce-starter')
+) as TemplateId;
+const scenarioId = (mission?.scenarioId ?? opt('scenario', 'tv-spike')) as ScenarioId;
+const seed = mission?.seed ?? Number(opt('seed', '1'));
 
 let graph = TEMPLATES[templateId]();
 for (const s of sets) {
@@ -62,4 +71,18 @@ if (args.includes('--json')) {
         `peak=${b.peak.toFixed(2)} failed=${b.failedRequests.toFixed(0)}`,
     );
   }
+}
+
+if (mission && !args.includes('--json')) {
+  const e = evaluateMission(mission, r);
+  console.log(`mission ${mission.id}: ${e.passed ? 'PASSED' : 'FAILED'} score=${e.overallScore}`);
+  for (const d of e.dimensions) {
+    const checks = d.checks
+      .map((c) => `${c.metric}=${c.actual.toFixed(3)} ${c.comparator} ${c.target}`)
+      .join(', ');
+    console.log(
+      `  ${d.dimension.padEnd(13)} ${d.passed ? 'pass' : 'FAIL'} ${String(d.score).padStart(3)}  ${checks}`,
+    );
+  }
+  if (e.learningTopics.length > 0) console.log(`  topics: ${e.learningTopics.join(', ')}`);
 }

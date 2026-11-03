@@ -1,5 +1,27 @@
 import { z } from 'zod';
 
+const azSchema = z.enum(['az-a', 'az-b', 'az-c']);
+
+export const scenarioEventSchema = z.discriminatedUnion('kind', [
+  /** `count` running compute instances fail; chosen by the seeded PRNG unless `nodeId` is given. */
+  z.object({
+    kind: z.literal('instance_failure'),
+    atMin: z.int().min(0),
+    count: z.int().min(1).max(50),
+    nodeId: z.string().optional(),
+  }),
+  /** Everything in the AZ is unavailable for the duration. */
+  z.object({
+    kind: z.literal('az_outage'),
+    atMin: z.int().min(0),
+    az: azSchema,
+    durationMin: z.int().min(1),
+  }),
+  /** The primary instance of every RDS (or of `nodeId`) fails. */
+  z.object({ kind: z.literal('db_failure'), atMin: z.int().min(0), nodeId: z.string().optional() }),
+]);
+export type ScenarioEvent = z.infer<typeof scenarioEventSchema>;
+
 export const scenarioSchema = z.object({
   id: z.string().min(1),
   version: z.int().min(1),
@@ -19,6 +41,8 @@ export const scenarioSchema = z.object({
       ),
     noisePct: z.number().min(0).max(50),
   }),
+  /** Disclosed failure events. Omitted means none. */
+  events: z.array(scenarioEventSchema).max(50).optional(),
 });
 export type Scenario = z.infer<typeof scenarioSchema>;
 

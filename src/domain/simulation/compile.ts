@@ -1,6 +1,7 @@
 import { readConfig } from '../catalog/catalog';
+import type { AvailabilityZone } from '../catalog/services';
 import { listNodes, nodesOfType, outgoing } from '../graph/graph';
-import { isTrafficAllowed } from '../graph/network';
+import { azsOf, isTrafficAllowed } from '../graph/network';
 import type { ConnectionId, InfrastructureGraph, NodeId } from '../graph/types';
 import { BALANCE } from './balance';
 
@@ -11,11 +12,22 @@ export interface DbLink {
   readonly allowed: boolean;
 }
 
+export interface AutoScalingPolicy {
+  readonly min: number;
+  readonly max: number;
+  readonly desired: number;
+  readonly targetUtilization: number;
+  readonly launchSec: number;
+}
+
 export interface ComputeModel {
   readonly id: NodeId;
   readonly kind: 'fixed' | 'autoscaling';
-  readonly instances: number;
+  readonly azs: readonly AvailabilityZone[];
+  readonly initialInstances: number;
   readonly capacityPerInstance: number;
+  readonly costPerInstanceHour: number;
+  readonly autoScaling?: AutoScalingPolicy;
   readonly dbLinks: readonly DbLink[];
 }
 
@@ -23,6 +35,9 @@ export interface DbModel {
   readonly id: NodeId;
   readonly capacityQps: number;
   readonly maxConnections: number;
+  readonly multiAz: boolean;
+  /** Sorted AZs of its subnets; the first is the initial primary. */
+  readonly azs: readonly AvailabilityZone[];
 }
 
 export interface Route {
@@ -33,10 +48,12 @@ export interface Route {
 
 export interface AlbModel {
   readonly id: NodeId;
+  /** Time for health checks to stop routing to a failed instance. */
+  readonly detectionSec: number;
   readonly targets: readonly Route[];
 }
 
-/** Graph compiled into the minimal structures the step loop needs. All collections are id-sorted. */
+/** Graph compiled into the minimal static structures the step loop needs. All collections are id-sorted. */
 export interface ExecutionModel {
   readonly entryRoutes: readonly Route[];
   readonly albs: ReadonlyMap<NodeId, AlbModel>;
@@ -57,8 +74,14 @@ export const compileGraph = (graph: InfrastructureGraph): ExecutionModel => {
   const entryRoutes = internet ? routesFrom(graph, internet.id) : [];
 
   const albs = new Map<NodeId, AlbModel>();
-  for (const alb of nodesOfType(graph, 'lb.alb'))
-    albs.set(alb.id, { id: alb.id, targets: routesFrom(graph, alb.id) });
+  for (const alb of nodesOfType(graph, 'lb.alb')) {
+    const cfg = readConfig(alb, 'lb.alb');
+    albs.set(alb.id, {
+      id: alb.id,
+      detectionSec: cfg ? cfg.healthCheck.intervalSec * cfg.healthCheck.unhealthyThreshold : 90,
+      targets: routesFrom(graph, alb.id),
+    });
+  }
 
   const computes = new Map<NodeId, ComputeModel>();
   for (const node of nodesOfType(graph, 'compute.ec2', 'compute.autoscaling')) {
@@ -77,9 +100,21 @@ export const compileGraph = (graph: InfrastructureGraph): ExecutionModel => {
     computes.set(node.id, {
       id: node.id,
       kind: fixed ? 'fixed' : 'autoscaling',
-      // Phase 2: Auto Scaling runs at desiredCapacity; dynamics arrive in Phase 3.
-      instances: fixed?.instanceCount ?? asg?.desiredCapacity ?? 0,
+      azs: azsOf(graph, node.id),
+      initialInstances: fixed?.instanceCount ?? asg?.desiredCapacity ?? 0,
       capacityPerInstance: BALANCE.instance[size].capacityRps,
+      costPerInstanceHour: BALANCE.instance[size].costPerHour,
+      ...(asg
+        ? {
+            autoScaling: {
+              min: asg.minCapacity,
+              max: asg.maxCapacity,
+              desired: asg.desiredCapacity,
+              targetUtilization: asg.targetCpuPct / 100,
+              launchSec: Math.max(BALANCE.minLaunchSec, asg.warmupSec),
+            },
+          }
+        : {}),
       dbLinks,
     });
   }
@@ -94,6 +129,8 @@ export const compileGraph = (graph: InfrastructureGraph): ExecutionModel => {
       id: node.id,
       capacityQps: cls.capacityQps * mult,
       maxConnections: cls.maxConnections,
+      multiAz: cfg.multiAz,
+      azs: azsOf(graph, node.id),
     });
   }
 

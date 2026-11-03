@@ -1,7 +1,7 @@
 # Service Models (MVP)
 
 Version: 0.1
-Status: Phase 1 (graph, catalog, validation). Simulation numbers are added in Phase 2.
+Status: Phase 3. Simulation behavior and numbers: `docs/SIMULATION_MODEL.md`.
 
 All services are **educational abstractions**. Parameters are deliberately reduced and do not mirror the AWS console. Capacity, latency and cost values are game-balance assumptions, not AWS facts.
 
@@ -53,7 +53,8 @@ Visual grouping (VPC / subnet boxes, AZ lanes) is derived from `placed_in`. Layo
 ### Auto Scaling (`compute.autoscaling`)
 - An independent node holding the instance spec and scaling policy (EC2 nodes are not attached to it).
 - Config: `instanceSize`, `minCapacity` ≤ `desiredCapacity` ≤ `maxCapacity` (1–50), `targetCpuPct` (10–90), `warmupSec`.
-- Scaling does not require a CloudWatch node.
+- Scaling does not require a CloudWatch node. `warmupSec` is the time before a new instance is in service (minimum 60 s).
+- Replaces failed instances automatically; fixed EC2 groups do not.
 - Application port: 80.
 
 ### RDS (`database.rds`)

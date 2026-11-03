@@ -21,6 +21,16 @@ describe('Japanese bottleneck text', () => {
     for (const t of Object.values(BOTTLENECK_TEXT_JA)) {
       expect(t.message && t.explanation && t.remediation).toBeTruthy();
     }
-    expect(Object.keys(BOTTLENECK_TEXT_JA)).toHaveLength(7);
+    expect(Object.keys(BOTTLENECK_TEXT_JA)).toHaveLength(10);
+  });
+});
+
+describe('Japanese evaluation text', () => {
+  it('covers dimensions, metrics and learning topics', async () => {
+    const t = await import('../../src/data/i18n/ja/evaluation');
+    const { DIMENSIONS } = await import('../../src/domain/missions/mission');
+    for (const d of DIMENSIONS) expect(t.DIMENSION_TEXT_JA[d]).toBeTruthy();
+    for (const v of Object.values(t.LEARNING_TOPIC_TEXT_JA)) expect(v.title && v.summary).toBeTruthy();
+    expect(Object.keys(t.METRIC_TEXT_JA)).toHaveLength(5);
   });
 });
