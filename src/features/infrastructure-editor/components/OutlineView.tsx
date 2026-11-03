@@ -2,6 +2,7 @@ import { readConfig } from '../../../domain/catalog/catalog';
 import { listNodes, nodesOfType, sourcesOf } from '../../../domain/graph/graph';
 import type { InfrastructureGraph, NodeId } from '../../../domain/graph/types';
 import { nodeLabel } from './EditorSheets';
+import { partSummary } from '../summary';
 
 /** List alternative to the diagram (PRODUCT_SPEC §12): VPC › subnet › resources, then the rest. */
 export function OutlineView(props: {
@@ -12,6 +13,12 @@ export function OutlineView(props: {
 }) {
   const { graph } = props;
   const shown = new Set<NodeId>();
+  const summaryOf = (id: NodeId) => {
+    const node = graph.nodes[id];
+    if (!node) return '';
+    // Whole-resource summary (a zonal part summary would show a per-AZ count).
+    return partSummary(graph, id, { role: 'single' });
+  };
   const item = (id: NodeId) => {
     shown.add(id);
     const issue = props.issues[id];
@@ -23,6 +30,7 @@ export function OutlineView(props: {
         onClick={() => props.onSelect(id)}
       >
         {nodeLabel(graph, id)}
+        {summaryOf(id) && <span className="outline-meta"> {summaryOf(id)}</span>}
         {issue && (
           <span className={`issue-pill issue-${issue}`}>{issue === 'error' ? 'エラー' : '警告'}</span>
         )}

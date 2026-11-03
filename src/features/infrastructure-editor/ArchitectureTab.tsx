@@ -31,6 +31,7 @@ import {
   ValidationSheet,
 } from './components/EditorSheets';
 import { OutlineView } from './components/OutlineView';
+import { describeNode, relatedNodeIds } from './summary';
 import './editor.css';
 import { GuideCard } from '../../shared/ui/GuideCard';
 
@@ -246,6 +247,7 @@ export function ArchitectureTab({
             issues={issues}
             locked={locked}
             zoom={zoom}
+            related={mode.kind === 'node' ? relatedNodeIds(graph, mode.nodeId) : undefined}
           />
           <div className="zoom-controls" role="group" aria-label="表示倍率">
             {ZOOMS.map((z) => (
@@ -264,6 +266,7 @@ export function ArchitectureTab({
           graph={graph}
           nodeId={mode.nodeId}
           findings={report.findings.filter((f) => f.nodeIds.includes(mode.nodeId))}
+          overview={describeNode(graph, mode.nodeId)}
           deleteBlockedBy={(() => {
             const p = deletePreview(mode.nodeId);
             return p.ok ? undefined : p.error[0];

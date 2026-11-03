@@ -8,6 +8,10 @@ Every core operation works with taps only (ADR 0002). Dragging is never required
 
 - Toolbar: **＋ 追加** (add service), **構成チェック** badge (⛔ errors / ⚠ warnings / ✓ OK), **一覧 / 図** toggle, undo ↶, redo ↷.
 - Canvas: tier × AZ auto-layout (ADR 0005). Zoom: 全体 / ×1.5 / ×2, panning by native scrolling.
+  - Servers (EC2, Auto Scaling) are drawn **once per AZ** they are placed in, joined by a dotted line, so nothing appears to straddle subnets. A Multi-AZ database shows its primary and a dashed standby; a single-AZ database is drawn only in its primary AZ. Load balancers really run in several AZs and are drawn spanning them.
+  - Every box carries a one-line summary of its key settings (e.g. `small × 2台`, `small・2〜14台`, `db.large・プライマリ`, `HTTP・インターネット向け`).
+  - Selecting a resource emphasises its security groups and subnets.
+- Node sheet starts with an **overview** in plain language: placement, instance counts per AZ, redundancy, protecting security groups with their inbound rules, request sources/targets, database and pool size.
 - Bottom sheet: one at a time, non-modal, expandable via the grip button. Selecting a resource scrolls it into view above the sheet.
 - Toast with **元に戻す** after add / connect / delete.
 

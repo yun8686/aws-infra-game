@@ -97,4 +97,11 @@ A scripted novice walkthrough and an exploit search were run before involving pe
 | 6 | Naive "12 servers" attempt fails with database connection errors from minute 0 — clear cause shown, hint mentions connections | OK | — |
 | 7 | After adding Auto Scaling, the node sheet lists missing request path and security group | OK | — |
 
+## Round 1 feedback (owner, 2026-11-03)
+
+| # | Feedback | Resolution |
+|---|---|---|
+| 1 | 設定内容の把握が難しい — settings were only visible by opening each form | One-line setting summary on every box; plain-language overview at the top of the node sheet (placement, counts per AZ, redundancy, security groups with rules, connections); related security groups and subnets highlighted on selection; summaries in the list view |
+| 2 | EC2 がサブネットをまたいで配置している表現になっている — multi-subnet resources were drawn as one box spanning AZ columns | Servers drawn once per AZ and linked; database primary/standby drawn in their own AZs; only load balancers span AZs |
+
 Open questions for human players: whether the four-connection Auto Scaling setup is discoverable without hint 3, whether "availability" (share of minutes with ≤ 5% errors) is understood, and whether 180 s default warm-up feels fair.

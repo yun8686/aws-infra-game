@@ -14,7 +14,7 @@ export const LAYOUT = {
   margin: 12,
   columnWidth: 108,
   columnGap: 8,
-  nodeHeight: 52,
+  nodeHeight: 64,
   rowGap: 12,
   bandPadding: 22,
   chipHeight: 32,
@@ -36,9 +36,30 @@ export interface Rect {
   readonly height: number;
 }
 
+/**
+ * How a resource is drawn. Resources placed in several subnets are drawn once per AZ ('zonal'),
+ * so nothing looks as if it straddles subnets; a Multi-AZ database shows its primary and standby.
+ * Load balancers and the Internet are genuinely multi-AZ / outside the VPC and span ('single').
+ */
+export type PartRole = 'single' | 'zonal' | 'primary' | 'standby';
+
 export interface LayoutNode extends Rect {
   readonly id: NodeId;
+  /** Unique per drawn part: `${id}` or `${id}@${az}`. */
+  readonly key: string;
+  readonly role: PartRole;
+  readonly az?: AvailabilityZone;
+  readonly partIndex: number;
+  readonly partCount: number;
   readonly securityGroupIds: readonly NodeId[];
+}
+
+/** Dashed link between the parts of one resource, or primary → standby replication. */
+export interface LayoutLink {
+  readonly kind: 'group' | 'replication';
+  readonly nodeId: NodeId;
+  readonly from: { readonly x: number; readonly y: number };
+  readonly to: { readonly x: number; readonly y: number };
 }
 
 export interface LayoutZone extends Rect {
@@ -67,6 +88,7 @@ export interface GraphLayoutResult {
   readonly nodes: readonly LayoutNode[];
   readonly zones: readonly LayoutZone[];
   readonly edges: readonly LayoutEdge[];
+  readonly links: readonly LayoutLink[];
   readonly chips: readonly LayoutChip[];
 }
 
@@ -75,16 +97,29 @@ interface Span {
   readonly end: number;
 }
 
-/** Greedy interval packing: returns a lane index per item so spans in one lane never overlap. */
-const packLanes = <T extends { span: Span }>(items: readonly T[]): number[] => {
-  const lanes: Span[][] = [];
+interface PartPlan {
+  readonly span: Span;
+  readonly role: PartRole;
+  readonly az?: AvailabilityZone;
+}
+interface Item {
+  readonly node: InfraNode;
+  readonly parts: readonly PartPlan[];
+}
+
+/** Greedy packing: each item goes to the first lane where none of its parts' columns are taken. */
+const packLanes = (items: readonly Item[]): number[] => {
+  const lanes: Set<number>[] = [];
   return items.map((item) => {
-    let lane = lanes.findIndex((l) => l.every((s) => item.span.end < s.start || item.span.start > s.end));
+    const cols = item.parts.flatMap((p) =>
+      Array.from({ length: p.span.end - p.span.start + 1 }, (_, i) => p.span.start + i),
+    );
+    let lane = lanes.findIndex((taken) => cols.every((c) => !taken.has(c)));
     if (lane === -1) {
       lane = lanes.length;
-      lanes.push([]);
+      lanes.push(new Set());
     }
-    lanes[lane]?.push(item.span);
+    for (const c of cols) lanes[lane]?.add(c);
     return lane;
   });
 };
@@ -107,37 +142,45 @@ export const layoutGraph = (graph: InfrastructureGraph): GraphLayoutResult => {
   });
 
   const fullSpan: Span = { start: 0, end: colCount - 1 };
-  const spanOf = (node: InfraNode): Span | undefined => {
-    const idx = azsOf(graph, node.id)
-      .map((az) => columns.indexOf(az))
-      .filter((i) => i >= 0);
-    if (idx.length === 0) return undefined;
-    return { start: Math.min(...idx), end: Math.max(...idx) };
+  const colOf = (az: AvailabilityZone) => columns.indexOf(az);
+
+  const partsOf = (node: InfraNode): PartPlan[] | undefined => {
+    const azs = azsOf(graph, node.id).filter((az) => colOf(az) >= 0);
+    if (azs.length === 0) return undefined;
+    const at = (az: AvailabilityZone, role: PartRole): PartPlan => ({
+      span: { start: colOf(az), end: colOf(az) },
+      role,
+      az,
+    });
+    if (node.serviceType === 'compute.ec2' || node.serviceType === 'compute.autoscaling') {
+      return azs.map((az) => at(az, 'zonal'));
+    }
+    if (node.serviceType === 'database.rds') {
+      const primary = azs[0] as AvailabilityZone;
+      const standby = readConfig(node, 'database.rds')?.multiAz ? azs[1] : undefined;
+      return standby ? [at(primary, 'primary'), at(standby, 'standby')] : [at(primary, 'primary')];
+    }
+    const idx = azs.map(colOf);
+    return [{ span: { start: Math.min(...idx), end: Math.max(...idx) }, role: 'single' }];
   };
 
-  const byTier: Record<Tier, { node: InfraNode; span: Span }[]> = {
-    entry: [],
-    edge: [],
-    compute: [],
-    data: [],
-    unplaced: [],
-  };
+  const byTier: Record<Tier, Item[]> = { entry: [], edge: [], compute: [], data: [], unplaced: [] };
+  let unplacedCount = 0;
   for (const node of listNodes(graph)) {
     const tier = TIER_OF[node.serviceType];
     if (!tier) continue;
     if (tier === 'entry') {
-      byTier.entry.push({ node, span: fullSpan });
+      byTier.entry.push({ node, parts: [{ span: fullSpan, role: 'single' }] });
       continue;
     }
-    const span = spanOf(node);
-    if (span) byTier[tier].push({ node, span });
-    else byTier.unplaced.push({ node, span: { start: 0, end: 0 } });
+    const parts = partsOf(node);
+    if (parts) byTier[tier].push({ node, parts });
+    else {
+      // Unplaced nodes flow left to right, one per column.
+      const col = unplacedCount++ % colCount;
+      byTier.unplaced.push({ node, parts: [{ span: { start: col, end: col }, role: 'single' }] });
+    }
   }
-  // Unplaced nodes flow left to right, one per column.
-  byTier.unplaced = byTier.unplaced.map((item, i) => ({
-    ...item,
-    span: { start: i % colCount, end: i % colCount },
-  }));
 
   const nodes: LayoutNode[] = [];
   const zones: LayoutZone[] = [];
@@ -150,15 +193,23 @@ export const layoutGraph = (graph: InfrastructureGraph): GraphLayoutResult => {
     const lanes = packLanes(items);
     const laneCount = Math.max(...lanes) + 1;
     items.forEach((item, i) => {
-      const { x, width: w } = spanX(item.span);
-      const inset = tier === 'entry' ? Math.max(0, (w - L.columnWidth) / 2) : 0;
-      nodes.push({
-        id: item.node.id,
-        x: x + inset,
-        y: top + (lanes[i] ?? 0) * (L.nodeHeight + L.rowGap),
-        width: w - inset * 2,
-        height: L.nodeHeight,
-        securityGroupIds: securityGroupsOf(graph, item.node.id).map((sg) => sg.id),
+      const sgs = securityGroupsOf(graph, item.node.id).map((sg) => sg.id);
+      item.parts.forEach((part, partIndex) => {
+        const { x, width: w } = spanX(part.span);
+        const inset = tier === 'entry' ? Math.max(0, (w - L.columnWidth) / 2) : 0;
+        nodes.push({
+          id: item.node.id,
+          key: part.az && item.parts.length > 1 ? `${item.node.id}@${part.az}` : item.node.id,
+          role: part.role,
+          ...(part.az ? { az: part.az } : {}),
+          partIndex,
+          partCount: item.parts.length,
+          x: x + inset,
+          y: top + (lanes[i] ?? 0) * (L.nodeHeight + L.rowGap),
+          width: w - inset * 2,
+          height: L.nodeHeight,
+          securityGroupIds: sgs,
+        });
       });
     });
     y = top + laneCount * (L.nodeHeight + L.rowGap) - L.rowGap;
@@ -246,20 +297,40 @@ export const layoutGraph = (graph: InfrastructureGraph): GraphLayoutResult => {
     y += Math.ceil(chipNodes.length / perRow) * (L.chipHeight + L.columnGap) - L.columnGap;
   }
 
-  const rectOf = new Map(nodes.map((n) => [n.id, n]));
+  const partsById = new Map<NodeId, LayoutNode[]>();
+  for (const n of nodes) partsById.set(n.id, [...(partsById.get(n.id) ?? []), n]);
+  const bottom = (r: LayoutNode) => ({ x: r.x + r.width / 2, y: r.y + r.height });
+  const topOf = (r: LayoutNode) => ({ x: r.x + r.width / 2, y: r.y });
+
   const edges: LayoutEdge[] = [];
   for (const c of listConnections(graph)) {
     if (c.connectionType !== 'routes_to' && c.connectionType !== 'data_access') continue;
-    const a = rectOf.get(c.sourceNodeId);
-    const b = rectOf.get(c.targetNodeId);
-    if (!a || !b) continue;
-    edges.push({
-      id: c.id,
-      kind: c.connectionType,
-      from: { x: a.x + a.width / 2, y: a.y + a.height },
-      to: { x: b.x + b.width / 2, y: b.y },
-    });
+    const sources = partsById.get(c.sourceNodeId) ?? [];
+    // Requests go to every zonal part; database traffic goes to the primary only.
+    const targets = (partsById.get(c.targetNodeId) ?? []).filter((t) => t.role !== 'standby');
+    for (const s of sources) {
+      const sameAz = targets.filter((t) => s.az !== undefined && t.az === s.az);
+      const chosen =
+        s.role === 'zonal' && c.connectionType === 'routes_to' && sameAz.length > 0 ? sameAz : targets;
+      for (const t of chosen) {
+        edges.push({ id: c.id, kind: c.connectionType, from: bottom(s), to: topOf(t) });
+      }
+    }
   }
 
-  return { width, height: y + L.margin, columns, nodes, zones, edges, chips };
+  const links: LayoutLink[] = [];
+  for (const [id, parts] of partsById) {
+    for (let i = 1; i < parts.length; i++) {
+      const a = parts[i - 1] as LayoutNode;
+      const b = parts[i] as LayoutNode;
+      links.push({
+        kind: b.role === 'standby' ? 'replication' : 'group',
+        nodeId: id,
+        from: { x: a.x + a.width, y: a.y + a.height / 2 },
+        to: { x: b.x, y: b.y + b.height / 2 },
+      });
+    }
+  }
+
+  return { width, height: y + L.margin, columns, nodes, zones, edges, links, chips };
 };

@@ -19,6 +19,7 @@ import type { Finding } from '../../../domain/validation/findings';
 import { BottomSheet } from '../../../shared/ui/BottomSheet';
 import { CONNECTION_FIELDS, SERVICE_FIELDS } from '../config/fieldSpecs';
 import { ConfigForm } from './ConfigForm';
+import type { OverviewLine } from '../summary';
 
 export const findingMessage = (f: Finding): string =>
   formatFindingText(FINDING_TEXT_JA[f.code].message, f.params);
@@ -46,6 +47,7 @@ export function NodeSheet(props: {
   readonly graph: InfrastructureGraph;
   readonly nodeId: NodeId;
   readonly findings: readonly Finding[];
+  readonly overview: readonly OverviewLine[];
   readonly deleteBlockedBy: Finding | undefined;
   readonly configLocked: boolean;
   readonly onClose: () => void;
@@ -85,6 +87,16 @@ export function NodeSheet(props: {
       }
     >
       {text && <p className="muted sheet-description">{text.description}</p>}
+      {props.overview.length > 0 && (
+        <dl className="overview-list" aria-label="現在の設定の概要">
+          {props.overview.map((l) => (
+            <div key={l.label}>
+              <dt>{l.label}</dt>
+              <dd>{l.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
       {props.deleteBlockedBy && <p className="notice small">{findingMessage(props.deleteBlockedBy)}</p>}
       {props.findings.length > 0 && (
         <ul className="finding-list">

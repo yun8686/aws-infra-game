@@ -3,6 +3,7 @@ import type { ConnectionId, InfrastructureGraph, NodeId } from '../../../domain/
 import { SERVICE_TEXT_JA } from '../../../data/i18n/ja/services';
 import { isServiceTypeId } from '../../../domain/catalog/ids';
 import { layoutGraph } from '../layout/tierLayout';
+import { partSummary } from '../summary';
 import './graph-canvas.css';
 
 export type Highlight = 'valid' | 'invalid';
@@ -22,6 +23,8 @@ export interface GraphCanvasProps {
   readonly zoom?: number;
   /** Monitoring overlay: a short status label per node at the selected time (icon + text, never color alone). */
   readonly metrics?: Readonly<Record<NodeId, NodeMetricBadge>> | undefined;
+  /** Resources related to the selection (its security groups and subnets), lightly emphasised. */
+  readonly related?: ReadonlySet<NodeId> | undefined;
 }
 
 export interface NodeMetricBadge {
@@ -49,6 +52,7 @@ export function GraphCanvas({
   locked,
   zoom = 1,
   metrics,
+  related,
 }: GraphCanvasProps) {
   const layout = useMemo(() => layoutGraph(graph), [graph]);
 
@@ -58,6 +62,7 @@ export function GraphCanvas({
       selectedId === id ? 'is-selected' : '',
       highlight?.[id] === 'valid' ? 'is-candidate' : '',
       highlight?.[id] === 'invalid' ? 'is-dimmed' : '',
+      related?.has(id) ? 'is-related' : '',
     ].join(' ');
   const keySelect = (id: NodeId) => (ev: React.KeyboardEvent) => {
     if (ev.key === 'Enter' || ev.key === ' ') {
@@ -144,12 +149,25 @@ export function GraphCanvas({
           </g>
         ))}
 
+        {layout.links.map((l, i) => (
+          <line
+            key={`link-${l.nodeId}-${i}`}
+            className={`part-link part-link-${l.kind}`}
+            x1={l.from.x}
+            y1={l.from.y}
+            x2={l.to.x}
+            y2={l.to.y}
+            aria-hidden="true"
+          />
+        ))}
+
         {layout.nodes.map((n) => {
           const node = graph.nodes[n.id];
           if (!node) return null;
           const issue = issues?.[n.id];
           const metric = metrics?.[n.id];
-          // The accessible name comes from the visible "TYPE name" text; extra state is a description.
+          const summary = partSummary(graph, n.id, n);
+          // The accessible name comes from the visible "TYPE name summary" text; extra state is a description.
           const extra = [
             metric ? `${LEVEL_TEXT[metric.level]} ${metric.text}` : '',
             locked?.has(n.id) ? 'ロック中' : '',
@@ -159,20 +177,20 @@ export function GraphCanvas({
             .join('、');
           return (
             <g
-              key={n.id}
-              className={`node node-${categoryClass(node.serviceType)} ${stateClass(n.id)} ${metric ? `heat-${metric.level}` : ''}`}
-              data-node-id={n.id}
+              key={n.key}
+              className={`node node-${categoryClass(node.serviceType)} part-${n.role} ${stateClass(n.id)} ${metric ? `heat-${metric.level}` : ''}`}
+              data-node-id={n.partIndex === 0 ? n.id : undefined}
               role="button"
               tabIndex={0}
               aria-pressed={selectedId === n.id}
-              aria-describedby={extra ? `desc-${n.id}` : undefined}
+              aria-describedby={extra ? `desc-${n.key}` : undefined}
               onClick={(ev) => {
                 ev.stopPropagation();
                 select(n.id);
               }}
               onKeyDown={keySelect(n.id)}
             >
-              {extra && <desc id={`desc-${n.id}`}>{extra}</desc>}
+              {extra && <desc id={`desc-${n.key}`}>{extra}</desc>}
               <rect x={n.x} y={n.y} width={n.width} height={n.height} rx={8} />
               {/* One text element so the visible text reads "TYPE name", matching the accessible name. */}
               <text x={n.x + 8} y={n.y + 18}>
@@ -180,6 +198,14 @@ export function GraphCanvas({
                 <tspan className="node-name" x={n.x + 8} dy={18}>
                   {node.name}
                 </tspan>
+                {summary && (
+                  <>
+                    {' '}
+                    <tspan className="node-summary" x={n.x + 8} dy={17}>
+                      {summary}
+                    </tspan>
+                  </>
+                )}
               </text>
               {locked?.has(n.id) && (
                 <text className="node-type" x={n.x + 34} y={n.y + 18} aria-hidden="true">

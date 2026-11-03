@@ -156,3 +156,23 @@
   stroke-width: 3;
   fill: color-mix(in srgb, var(--status-critical, #d03b3b) 14%, var(--node-fill));
 }
+.node-summary {
+  font-size: 10px;
+  font-weight: 500;
+  fill: var(--muted);
+}
+.part-link {
+  stroke: var(--edge);
+  stroke-width: 1.5;
+  stroke-dasharray: 2 3;
+}
+.part-link-replication {
+  stroke-dasharray: 6 3;
+}
+.part-standby rect {
+  stroke-dasharray: 5 3;
+}
+.is-related rect {
+  stroke: var(--accent) !important;
+  stroke-width: 2 !important;
+}

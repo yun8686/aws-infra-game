@@ -20,7 +20,9 @@ test('change a setting, see the cost estimate move, and undo it', async ({ page 
 
 test('invalid connections are explained, locked resources cannot be deleted', async ({ page }) => {
   await openArchitecture(page);
-  await page.getByRole('button', { name: 'RDS shop-db' }).tap();
+  await page.getByRole('button', { name: /RDS shop-db/ }).tap();
+  await expect(sheet(page).getByLabel('現在の設定の概要')).toContainText('単一AZ（az-a）');
+  await expect(sheet(page).getByLabel('現在の設定の概要')).toContainText('DB(5432) ← SG web-sg');
   await expect(sheet(page).getByRole('button', { name: '削除' })).toBeDisabled();
   await expect(sheet(page)).toContainText('ミッションの条件で変更できません');
   await sheet(page).getByRole('button', { name: '接続を追加' }).tap();
@@ -73,6 +75,9 @@ test('solve the TV spike mission with taps only (reference solution A)', async (
   await sheet(page).getByRole('button', { name: '閉じる' }).tap();
 
   await expect(page.getByRole('button', { name: /構成チェック: エラー 0 件/ })).toBeVisible();
+  // Settings are readable without opening forms: one box per AZ with a summary line.
+  await expect(page.getByRole('button', { name: /ASG asg-1 small・2〜14台/ })).toHaveCount(2);
+  await expect(page.getByRole('button', { name: /RDS shop-db db\.large・単一AZ/ })).toBeVisible();
 
   // First attempt: default warm-up (180 s) is too slow for the ramp — availability just misses.
   await page.getByRole('link', { name: /結果/ }).tap();
@@ -83,7 +88,10 @@ test('solve the TV spike mission with taps only (reference solution A)', async (
 
   // Iterate: faster warm-up, then the mission passes.
   await page.getByRole('link', { name: /構成/ }).tap();
-  await page.getByRole('button', { name: /ASG asg-1/ }).tap();
+  await page
+    .getByRole('button', { name: /ASG asg-1/ })
+    .first()
+    .tap();
   await sheet(page).getByRole('button', { name: '起動完了までの時間を減らす' }).tap();
   await sheet(page).getByRole('button', { name: '起動完了までの時間を減らす' }).tap();
   await expect(sheet(page).getByLabel('起動完了までの時間', { exact: true })).toHaveValue('120');
@@ -94,7 +102,7 @@ test('solve the TV spike mission with taps only (reference solution A)', async (
   // The edits were autosaved.
   await page.reload();
   await page.getByRole('link', { name: /構成/ }).tap();
-  await expect(page.getByRole('button', { name: /ASG asg-1/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /ASG asg-1/ })).toHaveCount(2); // one box per AZ
 });
 
 test('validation panel and outline view both lead to the resource', async ({ page }) => {

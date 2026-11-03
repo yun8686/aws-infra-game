@@ -306,3 +306,27 @@ fieldset.rules {
 [data-node-id] {
   scroll-margin-top: 150px;
 }
+
+.overview-list {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  background: var(--zone-fill);
+  border-radius: 10px;
+  font-size: 13px;
+}
+.overview-list div {
+  display: grid;
+  grid-template-columns: 6.5em 1fr;
+  gap: 8px;
+}
+.overview-list dt {
+  color: var(--muted-strong);
+  font-weight: 600;
+}
+.overview-list dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
