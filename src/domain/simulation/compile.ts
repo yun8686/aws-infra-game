@@ -101,7 +101,7 @@ export const compileGraph = (graph: InfrastructureGraph): ExecutionModel => {
       id: node.id,
       kind: fixed ? 'fixed' : 'autoscaling',
       azs: azsOf(graph, node.id),
-      initialInstances: fixed?.instanceCount ?? asg?.desiredCapacity ?? 0,
+      initialInstances: fixed ? 1 : (asg?.desiredCapacity ?? 0),
       capacityPerInstance: BALANCE.instance[size].capacityRps,
       costPerInstanceHour: BALANCE.instance[size].costPerHour,
       ...(asg

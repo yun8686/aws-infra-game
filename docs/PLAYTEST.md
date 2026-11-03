@@ -105,4 +105,6 @@ A scripted novice walkthrough and an exploit search were run before involving pe
 | 2 | EC2 がサブネットをまたいで配置している表現になっている — multi-subnet resources were drawn as one box spanning AZ columns | Servers drawn once per AZ and linked; database primary/standby drawn in their own AZs |
 | 3 | ALB は AZ の外に配置しているイメージ | Explained that an ALB is a regional managed service with a node in each selected subnet. Chosen representation (B): ALB inside the VPC, above the AZ/subnet boxes, with dotted placement lines to its public subnets |
 
+| 4 | EC2 の設定が分かりにくい。EC2 を複数サブネットに配置することは実際には発生しないし、EC2 の台数を増減させることも実際にはできない | ADR 0015: an EC2 node is one instance in one subnet with only a size setting; "同じ設定でもう1台" launches another (copies settings and connections, then asks for the subnet); automatic count changes are Auto Scaling only; monitoring summarises EC2 instances; template uses web-1/web-2. Mission calibration unchanged (reference-solution tests pass) |
+
 Open questions for human players: whether the four-connection Auto Scaling setup is discoverable without hint 3, whether "availability" (share of minutes with ≤ 5% errors) is understood, and whether 180 s default warm-up feels fair.

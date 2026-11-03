@@ -54,6 +54,8 @@ export function NodeSheet(props: {
   readonly onCommitConfig: (config: unknown) => readonly Finding[];
   readonly onRename: (name: string) => void;
   readonly onConnect: () => void;
+  /** Present for single EC2 instances: launch another with the same settings. */
+  readonly onDuplicate?: (() => void) | undefined;
   readonly onSelectConnection: (id: ConnectionId) => void;
   readonly onDelete: () => void;
 }) {
@@ -107,6 +109,16 @@ export function NodeSheet(props: {
             </li>
           ))}
         </ul>
+      )}
+      {props.onDuplicate && (
+        <div className="duplicate-row">
+          <button type="button" className="secondary-button" onClick={props.onDuplicate}>
+            ＋ 同じ設定でもう1台
+          </button>
+          <small className="field-help">
+            サイズ・セキュリティグループ・ロードバランサー・データベースへの接続を引き継ぎます。配置するサブネットは次に選びます。
+          </small>
+        </div>
       )}
       <NameField key={`name-${nodeId}`} value={node.name} onRename={props.onRename} />
       {isServiceTypeId(type) && (

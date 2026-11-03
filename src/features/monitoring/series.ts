@@ -40,7 +40,15 @@ export const badgesAt = (
         text: connRatio > 1 ? `接続 ${pct(connRatio)}` : `負荷 ${pct(m.utilization ?? 0)}`,
         level: level(u),
       };
-    } else if (node.serviceType === 'compute.ec2' || node.serviceType === 'compute.autoscaling') {
+    } else if (node.serviceType === 'compute.ec2') {
+      // A single instance (ADR 0015): running or stopped, and how busy.
+      if ((m.instances ?? 0) === 0) {
+        out[id] = { text: (m.failedInstances ?? 0) > 0 ? '停止（故障）' : '停止', level: 'bad' };
+        continue;
+      }
+      const u = m.utilization ?? 0;
+      out[id] = { text: `CPU ${u > 1 ? '過負荷' : pct(u)}`, level: level(u) };
+    } else if (node.serviceType === 'compute.autoscaling') {
       const running = m.instances ?? 0;
       if (running === 0) {
         out[id] = { text: '稼働 0台', level: 'bad' };
@@ -58,3 +66,22 @@ export const badgesAt = (
 
 export const isAutoScaling = (graph: InfrastructureGraph, id: NodeId): boolean =>
   readConfig(graph.nodes[id], 'compute.autoscaling') !== undefined;
+
+export const ec2NodeIds = (graph: InfrastructureGraph): NodeId[] =>
+  nodesOfType(graph, 'compute.ec2').map((n) => n.id);
+export const autoScalingNodeIds = (graph: InfrastructureGraph): NodeId[] =>
+  nodesOfType(graph, 'compute.autoscaling').map((n) => n.id);
+
+/** Load over capacity across all EC2 instances (failed ones contribute no capacity). */
+export const ec2Utilization = (step: StepMetrics, ids: readonly NodeId[]): number => {
+  let load = 0;
+  let capacity = 0;
+  for (const id of ids) {
+    load += step.nodes[id]?.loadPerSec ?? 0;
+    capacity += step.nodes[id]?.capacityPerSec ?? 0;
+  }
+  return capacity > 0 ? load / capacity : load > 0 ? 2 : 0;
+};
+
+export const ec2Running = (step: StepMetrics, ids: readonly NodeId[]): number =>
+  ids.reduce((a, id) => a + (step.nodes[id]?.instances ?? 0), 0);

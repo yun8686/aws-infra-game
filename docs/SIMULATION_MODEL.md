@@ -65,12 +65,12 @@ Every node that exists in the graph is billed, whether or not it receives traffi
 
 ## Instances and failures
 
-Instances are spread round-robin across the AZs of a compute node's subnets.
+An EC2 node is a single instance in its subnet. Auto Scaling instances are spread across the AZs of the group's subnets.
 
-| Event | Fixed EC2 group | Auto Scaling group |
+| Event | EC2 instance (one per node, ADR 0015) | Auto Scaling group |
 |---|---|---|
-| `instance_failure` | Instance stays failed for the rest of the run | Detected after 60 s, terminated and replaced |
-| `az_outage` | Instances in the AZ fail; they reboot (120 s) when the AZ returns | Detected after 60 s, replaced in healthy AZs |
+| `instance_failure` | The instance stays failed for the rest of the run | Detected after 60 s, terminated and replaced |
+| `az_outage` | Fails if in the AZ; reboots (120 s) when the AZ returns | Detected after 60 s, replaced in healthy AZs |
 
 New Auto Scaling instances become ready after `max(60 s, warmupSec)`. Launches go to the healthy AZ with the fewest instances; if no subnet AZ is healthy, nothing launches.
 

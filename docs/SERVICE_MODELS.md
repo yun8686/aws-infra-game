@@ -11,7 +11,7 @@ Source of truth in code: `src/domain/catalog/`.
 
 | Type | Semantic | Direction | Allowed pairs |
 |---|---|---|---|
-| `placed_in` | structural placement | child → container | Subnet → VPC, Security Group → VPC, ALB / EC2 / Auto Scaling / RDS → Subnet |
+| `placed_in` | structural placement | child → container | Subnet → VPC, Security Group → VPC, ALB / EC2 (one subnet) / Auto Scaling / RDS → Subnet |
 | `routes_to` | request traffic | upstream → downstream | Internet → ALB, Internet → EC2, ALB → EC2, ALB → Auto Scaling |
 | `data_access` | DB queries | client → database | EC2 → RDS, Auto Scaling → RDS (config: `poolSize`) |
 | `secured_by` | firewall attachment | resource → SG | ALB / EC2 / Auto Scaling / RDS → Security Group |
@@ -44,11 +44,12 @@ Visual grouping (VPC / subnet boxes, AZ lanes) is derived from `placed_in`. Layo
 - Placement: 1–3 subnets, at least two different AZs. Internet-facing ALBs must use public subnets.
 
 ### EC2 (`compute.ec2`)
-- A **fixed-count instance group**, not a single instance.
-- Config: `instanceSize` (`small` | `medium` | `large` | `xlarge`), `instanceCount` (1–20).
-- Placement: 1–3 subnets; instances are spread across them in the simulation.
+- **One instance** (ADR 0015).
+- Config: `instanceSize` (`small` | `medium` | `large` | `xlarge`).
+- Placement: exactly one subnet.
+- More fixed servers are more EC2 nodes ("同じ設定でもう1台" copies settings and connections). A failed instance stays failed for the run.
 - Application port: 80.
-- When targeted directly from the Internet, all subnets must be public.
+- When targeted directly from the Internet, its subnet must be public.
 
 ### Auto Scaling (`compute.autoscaling`)
 - An independent node holding the instance spec and scaling policy (EC2 nodes are not attached to it).

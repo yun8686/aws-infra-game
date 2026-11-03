@@ -58,6 +58,7 @@ export interface WebStack {
   sgDb: NodeId;
   alb: NodeId;
   web: NodeId;
+  web2: NodeId;
   db: NodeId;
 }
 
@@ -91,9 +92,14 @@ export const buildWebStackFromBaseline = (): WebStack => {
   b.link(alb, pubB, 'placed_in');
   b.link(alb, sgAlb, 'secured_by');
 
-  const web = b.add('compute.ec2', { instanceSize: 'small', instanceCount: 2 });
-  b.link(web, privA, 'placed_in');
-  b.link(web, sgWeb, 'secured_by');
+  const server = (name: string) => {
+    const id = b.add('compute.ec2', { instanceSize: 'small' }, name);
+    b.link(id, privA, 'placed_in');
+    b.link(id, sgWeb, 'secured_by');
+    return id;
+  };
+  const web = server('web-1');
+  const web2 = server('web-2');
 
   const db = b.add('database.rds');
   b.link(db, privA, 'placed_in');
@@ -102,8 +108,10 @@ export const buildWebStackFromBaseline = (): WebStack => {
 
   b.link('internet-1', alb, 'routes_to');
   b.link(alb, web, 'routes_to');
+  b.link(alb, web2, 'routes_to');
   b.link(web, db, 'data_access', { poolSize: 10 });
-  return { b, vpc, pubA, pubB, privA, privB, sgAlb, sgWeb, sgDb, alb, web, db };
+  b.link(web2, db, 'data_access', { poolSize: 10 });
+  return { b, vpc, pubA, pubB, privA, privB, sgAlb, sgWeb, sgDb, alb, web, web2, db };
 };
 
 export const codes = (findings: readonly Finding[]): string[] => findings.map((f) => f.code);

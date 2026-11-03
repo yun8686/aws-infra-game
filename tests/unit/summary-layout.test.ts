@@ -1,14 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { connect } from '../../src/domain/graph/commands';
 import { TEMPLATES } from '../../src/data/templates';
 import { layoutGraph } from '../../src/features/infrastructure-editor/layout/tierLayout';
-import {
-  describeNode,
-  instancesInAz,
-  partSummary,
-  relatedNodeIds,
-} from '../../src/features/infrastructure-editor/summary';
-import { buildWebStackFromBaseline, unwrap } from '../fixtures/builders';
+import { describeNode, partSummary, relatedNodeIds } from '../../src/features/infrastructure-editor/summary';
+import { buildWebStackFromBaseline } from '../fixtures/builders';
 import { ASG_SMALL, replaceWebWithAutoScaling, setConfig } from '../fixtures/solutions';
 
 const template = () => TEMPLATES['ecommerce-starter']();
@@ -62,25 +56,10 @@ describe('per-AZ drawing (playtest: resources must not look as if they straddle 
 });
 
 describe('configuration summaries (playtest: settings were hard to grasp)', () => {
-  it('splits fixed instances across AZs like the simulation', () => {
-    expect([instancesInAz(4, ['az-a', 'az-b'], 'az-a'), instancesInAz(4, ['az-a', 'az-b'], 'az-b')]).toEqual([
-      2, 2,
-    ]);
-    expect([instancesInAz(3, ['az-a', 'az-b'], 'az-a'), instancesInAz(3, ['az-a', 'az-b'], 'az-b')]).toEqual([
-      2, 1,
-    ]);
-  });
-
   it('shows key settings on each drawn part', () => {
-    const g = unwrap(
-      connect(setConfig(template(), 'ec2-1', { instanceCount: 3 }), {
-        sourceNodeId: 'ec2-1',
-        targetNodeId: 'subnet-4',
-        connectionType: 'placed_in',
-      }),
-    ).graph;
-    expect(partSummary(g, 'ec2-1', { role: 'zonal', az: 'az-a' })).toBe('small × 2台');
-    expect(partSummary(g, 'ec2-1', { role: 'zonal', az: 'az-b' })).toBe('small × 1台');
+    const g = setConfig(template(), 'ec2-2', { instanceSize: 'large' });
+    expect(partSummary(g, 'ec2-1', { role: 'zonal', az: 'az-a' })).toBe('small・50 rps');
+    expect(partSummary(g, 'ec2-2', { role: 'zonal', az: 'az-a' })).toBe('large・200 rps');
     expect(partSummary(g, 'rds-1', { role: 'primary', az: 'az-a' })).toBe('db.small・単一AZ');
     expect(partSummary(g, 'alb-1', { role: 'single' })).toBe('HTTP・インターネット向け');
   });
@@ -89,7 +68,7 @@ describe('configuration summaries (playtest: settings were hard to grasp)', () =
     const lines = Object.fromEntries(describeNode(template(), 'ec2-1').map((l) => [l.label, l.value]));
     expect(lines).toMatchObject({
       配置: 'private-a（az-a・プライベート）',
-      台数: '2台（固定）',
+      サーバー: '1台・small（処理能力 50 rps・1 cr/時）。故障しても自動では復旧しません',
       保護: 'web-sg（HTTP(80) ← SG alb-sg）',
       リクエスト元: 'shop-alb',
       データベース: 'shop-db（プール 10）',
@@ -100,7 +79,7 @@ describe('configuration summaries (playtest: settings were hard to grasp)', () =
 
   it('relates a resource to its security groups and subnets', () => {
     expect([...relatedNodeIds(template(), 'ec2-1')].sort()).toEqual(['sg-2', 'subnet-3']);
-    expect([...relatedNodeIds(template(), 'sg-2')]).toEqual(['ec2-1']);
+    expect([...relatedNodeIds(template(), 'sg-2')]).toEqual(['ec2-1', 'ec2-2']);
   });
 });
 

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { SCENARIOS } from '../../src/data/scenarios';
 import { TEMPLATES } from '../../src/data/templates';
-import { connect } from '../../src/domain/graph/commands';
+import { connect, disconnect } from '../../src/domain/graph/commands';
 import type { InfrastructureGraph } from '../../src/domain/graph/types';
 import { simulate, stableStringify, type Scenario, type SimulationResult } from '../../src/domain/simulation';
 import { GraphBuilder, unwrap } from '../fixtures/builders';
-import { ASG_SMALL, replaceWebWithAutoScaling, setConfig } from '../fixtures/solutions';
+import { ASG_SMALL, replaceWebWithAutoScaling, setConfig, setWebServers } from '../fixtures/solutions';
 
 const template = () => TEMPLATES['ecommerce-starter']();
 const run = (graph: InfrastructureGraph, scenario: Scenario, seed = 1): SimulationResult => {
@@ -22,14 +22,21 @@ const steady = (events: Scenario['events'], durationMin = 60, rps = 80): Scenari
 });
 const failedIn = (r: SimulationResult, from: number, to: number) =>
   r.steps.filter((s) => s.minute >= from && s.minute <= to).reduce((a, s) => a + s.errorRps * 60, 0);
-const spreadAcrossAzs = (g: InfrastructureGraph) =>
-  unwrap(
-    connect(setConfig(g, 'ec2-1', { instanceCount: 4 }), {
-      sourceNodeId: 'ec2-1',
+/** Four web instances, two in each AZ: move web-2 to az-b, then launch two more alternating. */
+const spreadAcrossAzs = (g: InfrastructureGraph) => {
+  const placement = Object.values(g.connections).find(
+    (c) => c.sourceNodeId === 'ec2-2' && c.connectionType === 'placed_in',
+  );
+  if (!placement) throw new Error('fixture');
+  const moved = unwrap(
+    connect(unwrap(disconnect(g, placement.id)).graph, {
+      sourceNodeId: 'ec2-2',
       targetNodeId: 'subnet-4',
       connectionType: 'placed_in',
     }),
   ).graph;
+  return setWebServers(moved, 4, { subnets: ['subnet-3', 'subnet-4'] });
+};
 
 describe('redundancy changes the impact of failures (MVP acceptance)', () => {
   it('an AZ outage takes down a single-AZ web tier but not a two-AZ one', () => {
@@ -65,7 +72,9 @@ describe('redundancy changes the impact of failures (MVP acceptance)', () => {
       replaceWebWithAutoScaling(template(), { ...ASG_SMALL, minCapacity: 2, maxCapacity: 2 }).graph,
       scenario,
     );
-    expect(fixed.steps[25]?.nodes['ec2-1']).toMatchObject({ instances: 1, failedInstances: 1 });
+    // One of the two fixed EC2 instances failed and stays failed.
+    const failed = ['ec2-1', 'ec2-2'].map((id) => fixed.steps[25]?.nodes[id]?.failedInstances ?? 0);
+    expect(failed.reduce((a, b) => a + b, 0)).toBe(1);
     expect(fixed.summary.errorRate).toBeGreaterThan(0.1);
     expect(asg.steps[25]?.nodes['asg-1']).toMatchObject({ instances: 2, failedInstances: 0 });
     expect(asg.timeline.map((e) => e.kind)).toEqual([
@@ -80,7 +89,7 @@ describe('redundancy changes the impact of failures (MVP acceptance)', () => {
 
 describe('health checks', () => {
   it('faster health checks reduce requests lost to a failed instance', () => {
-    const g = setConfig(template(), 'ec2-1', { instanceCount: 4 });
+    const g = setWebServers(template(), 4);
     const scenario = steady([{ kind: 'instance_failure', atMin: 5, count: 1 }], 20, 100);
     const slow = run(
       setConfig(g, 'alb-1', { healthCheck: { intervalSec: 60, unhealthyThreshold: 5 } }),
@@ -105,10 +114,13 @@ describe('health checks', () => {
       inboundRules: [{ port: 80, source: { kind: 'anywhere' } }],
     });
     b.link(sg, vpc, 'placed_in');
-    const web = b.add('compute.ec2', { instanceSize: 'small', instanceCount: 2 });
-    b.link(web, pub, 'placed_in');
-    b.link(web, sg, 'secured_by');
-    b.link('internet-1', web, 'routes_to');
+    const servers = ['web-1', 'web-2'].map((name) => {
+      const id = b.add('compute.ec2', { instanceSize: 'small' }, name);
+      b.link(id, pub, 'placed_in');
+      b.link(id, sg, 'secured_by');
+      b.link('internet-1', id, 'routes_to');
+      return id;
+    });
     // A static site (no database queries) isolates the health-check behaviour.
     const s = { ...steady([{ kind: 'instance_failure', atMin: 5, count: 1 }], 30, 40), queriesPerRequest: 0 };
     const direct = run(b.graph, s);
@@ -116,7 +128,8 @@ describe('health checks', () => {
     // ALB stops routing to the failed instance after its health checks; direct exposure never does.
     expect(failedIn(viaAlb, 20, 29)).toBe(0);
     expect(failedIn(direct, 20, 29)).toBeGreaterThan(0);
-    expect(direct.bottlenecks[0]).toMatchObject({ cause: 'unhealthy_target', nodeIds: [web], endMinute: 29 });
+    expect(direct.bottlenecks[0]).toMatchObject({ cause: 'unhealthy_target', endMinute: 29 });
+    expect(servers).toContain(direct.bottlenecks[0]?.nodeIds[0]);
   });
 });
 
@@ -135,7 +148,7 @@ describe('Auto Scaling dynamics', () => {
     expect((firstReady?.minute ?? 0) - (firstOut?.minute ?? 0)).toBe(2); // warmup 120 s
     // Elastic capacity costs less than holding peak capacity all the time.
     const fixedPeak = run(
-      setConfig(setConfig(template(), 'ec2-1', { instanceCount: 14 }), 'rds-1', {
+      setConfig(setWebServers(template(), 14), 'rds-1', {
         instanceClass: 'db.large',
       }),
       SCENARIOS['tv-spike'],

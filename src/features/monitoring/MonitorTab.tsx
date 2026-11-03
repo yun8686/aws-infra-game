@@ -8,7 +8,15 @@ import { GraphCanvas } from '../infrastructure-editor/components/GraphCanvas';
 import { nodeLabel } from '../infrastructure-editor/components/EditorSheets';
 import { TimeSeriesChart, type Series } from '../../shared/ui/charts/TimeSeriesChart';
 import { credits, ms, percent } from '../../shared/ui/format';
-import { badgesAt, computeNodeIds, databaseNodeIds, pick } from './series';
+import {
+  autoScalingNodeIds,
+  badgesAt,
+  databaseNodeIds,
+  ec2NodeIds,
+  ec2Running,
+  ec2Utilization,
+  pick,
+} from './series';
 import type { StepMetrics } from '../../domain/simulation/types';
 import './monitor.css';
 import { GuideCard } from '../../shared/ui/GuideCard';
@@ -72,9 +80,10 @@ export function MonitorTab({ projectId }: { readonly projectId: string }) {
 
   const data = useMemo(() => {
     if (!sim || !graph) return undefined;
-    const computes = computeNodeIds(graph)
+    const ec2s = ec2NodeIds(graph).filter((id) => sim.steps[0]?.nodes[id]);
+    const asgs = autoScalingNodeIds(graph)
       .filter((id) => sim.steps[0]?.nodes[id])
-      .slice(0, MAX_SERIES);
+      .slice(0, ec2s.length > 0 ? MAX_SERIES - 1 : MAX_SERIES);
     const dbs = databaseNodeIds(graph)
       .filter((id) => sim.steps[0]?.nodes[id])
       .slice(0, MAX_SERIES);
@@ -97,8 +106,43 @@ export function MonitorTab({ projectId }: { readonly projectId: string }) {
       latency: [
         { id: 'lat', label: '応答時間', color: COLORS[0], values: pick(sim.steps, (s) => s.latencyMs) },
       ] as Series[],
-      cpu: perNode(computes, (id, s) => Math.min(s.nodes[id]?.utilization ?? 0, 2)),
-      instances: perNode(computes, (id, s) => s.nodes[id]?.instances ?? 0),
+      // EC2 instances are summarised as one series; each Auto Scaling group gets its own (max 3 series).
+      cpu: [
+        ...(ec2s.length > 0
+          ? [
+              {
+                id: 'ec2',
+                label: `EC2 全体（${ec2s.length}台）`,
+                color: COLORS[0] as string,
+                values: pick(sim.steps, (s) => Math.min(ec2Utilization(s, ec2s), 2)),
+              },
+            ]
+          : []),
+        ...asgs.map((id, i) => ({
+          id,
+          label: name(id),
+          color: COLORS[(ec2s.length > 0 ? 1 : 0) + i] as string,
+          values: pick(sim.steps, (s) => Math.min(s.nodes[id]?.utilization ?? 0, 2)),
+        })),
+      ] as Series[],
+      instances: [
+        ...(ec2s.length > 0
+          ? [
+              {
+                id: 'ec2',
+                label: 'EC2（稼働中）',
+                color: COLORS[0] as string,
+                values: pick(sim.steps, (s) => ec2Running(s, ec2s)),
+              },
+            ]
+          : []),
+        ...asgs.map((id, i) => ({
+          id,
+          label: name(id),
+          color: COLORS[(ec2s.length > 0 ? 1 : 0) + i] as string,
+          values: pick(sim.steps, (s) => s.nodes[id]?.instances ?? 0),
+        })),
+      ] as Series[],
       dbConnections: perNode(dbs, (id, s) => s.nodes[id]?.connections ?? 0),
       dbMaxConnections:
         dbs.length === 1 ? (sim.steps[0]?.nodes[dbs[0] as string]?.maxConnections ?? 0) : undefined,
@@ -106,7 +150,8 @@ export function MonitorTab({ projectId }: { readonly projectId: string }) {
       cost: [
         { id: 'cost', label: 'コスト', color: COLORS[0], values: pick(sim.steps, (s) => s.costPerHour) },
       ] as Series[],
-      truncated: computeNodeIds(graph).length > MAX_SERIES || databaseNodeIds(graph).length > MAX_SERIES,
+      truncated:
+        autoScalingNodeIds(graph).length > MAX_SERIES - 1 || databaseNodeIds(graph).length > MAX_SERIES,
     };
   }, [sim, graph]);
 

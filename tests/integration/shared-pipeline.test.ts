@@ -44,6 +44,7 @@ describe('template and free construction share one graph model', () => {
       connect(g, { sourceNodeId: asg.nodeId, targetNodeId: 'rds-1', connectionType: 'data_access' }),
     ).graph;
     g = unwrap(removeNode(g, 'ec2-1')).graph;
+    g = unwrap(removeNode(g, 'ec2-2')).graph;
     const report = validateGraph(g);
     expect(report.findings).toEqual([]);
     expect(report.canSimulate).toBe(true);

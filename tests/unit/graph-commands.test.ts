@@ -4,6 +4,7 @@ import {
   checkConnect,
   connect,
   disconnect,
+  duplicateNode,
   removeNode,
   renameNode,
   updateConnectionConfig,
@@ -20,7 +21,7 @@ describe('addNode', () => {
     const r2 = unwrap(addNode(r1.graph, { serviceType: 'compute.ec2' }));
     expect(r1.nodeId).toBe('ec2-1');
     expect(r2.nodeId).toBe('ec2-2');
-    expect(r2.graph.nodes['ec2-1']?.config).toEqual({ instanceSize: 'small', instanceCount: 1 });
+    expect(r2.graph.nodes['ec2-1']?.config).toEqual({ instanceSize: 'small' });
     expect(Object.keys(g0.nodes)).toHaveLength(0); // input is not mutated
   });
 
@@ -29,7 +30,7 @@ describe('addNode', () => {
     const unknown = addNode(g, { serviceType: 'compute.lambda' });
     const invalid = addNode(g, {
       serviceType: 'compute.ec2',
-      config: { instanceSize: 'huge', instanceCount: 1 },
+      config: { instanceSize: 'huge' },
     });
     const system = addNode(g, { serviceType: 'external.internet' });
     expect(!unknown.ok && codes(unknown.error)).toEqual(['node.unknown_service']);
@@ -98,14 +99,24 @@ describe('connect', () => {
 
     const otherSubnet = b.add('network.subnet', { tier: 'private', az: 'az-b', cidr: '10.1.0.0/24' });
     b.link(otherSubnet, vpc2, 'placed_in');
-    const ec2 = b.add('compute.ec2');
-    b.link(ec2, subnet, 'placed_in');
+    const asg = b.add('compute.autoscaling');
+    b.link(asg, subnet, 'placed_in');
     const mixed = checkConnect(b.graph, {
-      sourceNodeId: ec2,
+      sourceNodeId: asg,
       targetNodeId: otherSubnet,
       connectionType: 'placed_in',
     });
     expect(codes(mixed)).toEqual(['placement.mixed_vpc']);
+  });
+
+  it('places a single EC2 instance in exactly one subnet (ADR 0015)', () => {
+    const s = buildWebStackFromBaseline();
+    const second = checkConnect(s.b.graph, {
+      sourceNodeId: s.web,
+      targetNodeId: s.privB,
+      connectionType: 'placed_in',
+    });
+    expect(codes(second)).toEqual(['placement.too_many']);
   });
 
   it('rejects invalid connection config', () => {
@@ -162,13 +173,41 @@ describe('removeNode', () => {
   });
 });
 
+describe('duplicateNode ("launch another like this")', () => {
+  it('copies config and non-placement connections, leaving placement to the player', () => {
+    const s = buildWebStackFromBaseline();
+    const g = unwrap(updateNodeConfig(s.b.graph, s.web, { instanceSize: 'medium' })).graph;
+    const r = unwrap(duplicateNode(g, s.web));
+    const copy = r.graph.nodes[r.nodeId];
+    expect(copy).toMatchObject({
+      serviceType: 'compute.ec2',
+      name: 'web-3',
+      config: { instanceSize: 'medium' },
+    });
+    const kinds = Object.values(r.graph.connections)
+      .filter((c) => c.sourceNodeId === r.nodeId || c.targetNodeId === r.nodeId)
+      .map((c) => `${c.sourceNodeId === r.nodeId ? 'out' : 'in'}:${c.connectionType}`)
+      .sort();
+    expect(kinds).toEqual(['in:routes_to', 'out:data_access', 'out:secured_by']);
+    expect(r.copiedConnectionIds).toHaveLength(3);
+  });
+
+  it('respects mission policy and reports missing nodes', () => {
+    const s = buildWebStackFromBaseline();
+    const blocked = duplicateNode(s.b.graph, s.web, { allowedServiceTypes: ['database.rds'] });
+    expect(!blocked.ok && codes(blocked.error)).toEqual(['edit.service_not_allowed']);
+    const missing = duplicateNode(s.b.graph, 'ghost');
+    expect(!missing.ok && codes(missing.error)).toEqual(['edit.node_not_found']);
+  });
+});
+
 describe('config, rename and disconnect', () => {
   it('validates config updates and respects read-only locks', () => {
     const s = buildWebStackFromBaseline();
-    const next = { instanceSize: 'large', instanceCount: 4 };
+    const next = { instanceSize: 'large' };
     const r = unwrap(updateNodeConfig(s.b.graph, s.web, next));
     expect(r.graph.nodes[s.web]?.config).toEqual(next);
-    const bad = updateNodeConfig(s.b.graph, s.web, { instanceSize: 'large', instanceCount: 0 });
+    const bad = updateNodeConfig(s.b.graph, s.web, { instanceSize: 'gigantic' });
     expect(!bad.ok && codes(bad.error)).toEqual(['node.invalid_config']);
     const ro = updateNodeConfig(s.b.graph, s.db, {}, { lockedNodes: { [s.db]: 'read-only' } });
     expect(!ro.ok && codes(ro.error)).toEqual(['edit.node_locked']);

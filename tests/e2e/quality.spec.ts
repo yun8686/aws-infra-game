@@ -19,7 +19,7 @@ test('main screens have no serious accessibility violations', async ({ page }) =
   expect(await violations(page)).toEqual([]);
 
   await page.getByRole('link', { name: /構成/ }).click();
-  await page.getByRole('button', { name: 'EC2 web' }).click();
+  await page.getByRole('button', { name: /EC2 web-1/ }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   expect(await violations(page)).toEqual([]);
 

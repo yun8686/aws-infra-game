@@ -154,9 +154,10 @@ export const FINDING_TEXT_JA: { readonly [K in FindingCode]: FindingText } = {
     remediation: 'ルールを削除するか、参照先を選び直してください。',
   },
   'placement.single_az_compute': {
-    message: 'サーバーが1つのAZにしかありません',
+    message: 'リクエストを受けるサーバーが、すべて同じAZにあります',
     explanation: 'そのAZで障害が起きると、すべてのサーバーが止まります。',
-    remediation: '別のAZのサブネットにも配置すると、AZ障害に強くなります。',
+    remediation:
+      '別のAZのサブネットにもサーバーを置くと、AZ障害に強くなります（EC2 は「同じ設定でもう1台」、Auto Scaling は配置先の追加）。',
   },
   'dependency.compute_without_database': {
     message: 'このサーバーはデータベースに接続されていません',

@@ -282,3 +282,59 @@ export const updateConnectionConfig = (
 
 export const isPlayerAddable = (type: string): boolean =>
   isServiceTypeId(type) && !getServiceDefinition(type)?.systemManaged;
+
+export interface DuplicateNodeEffects {
+  readonly nodeId: NodeId;
+  readonly copiedConnectionIds: readonly ConnectionId[];
+}
+
+/**
+ * "Launch another like this": copies a node's config and its non-placement connections
+ * (security groups, incoming traffic, data access, monitoring). Placement is left to the player,
+ * because a single instance belongs to exactly one subnet.
+ */
+export const duplicateNode = (
+  graph: InfrastructureGraph,
+  nodeId: NodeId,
+  policy: EditPolicy = {},
+): CommandResult<DuplicateNodeEffects> => {
+  const node = graph.nodes[nodeId];
+  if (!node) return reject(finding('edit.node_not_found', 'error', 'edit', { nodeIds: [nodeId] }));
+  const added = addNode(graph, { serviceType: node.serviceType, config: node.config }, policy);
+  if (!added.ok) return added;
+  let next = added.value.graph;
+  const newId = added.value.nodeId;
+  next = {
+    ...next,
+    nodes: {
+      ...next.nodes,
+      [newId]: { ...(next.nodes[newId] as InfraNode), name: nextCopyName(graph, node.name) },
+    },
+  };
+  const copied: ConnectionId[] = [];
+  for (const c of connectionsOf(graph, nodeId)) {
+    if (c.connectionType === 'placed_in') continue;
+    const input: ConnectInput = {
+      sourceNodeId: c.sourceNodeId === nodeId ? newId : c.sourceNodeId,
+      targetNodeId: c.targetNodeId === nodeId ? newId : c.targetNodeId,
+      connectionType: c.connectionType as ConnectionTypeId,
+      ...(c.config !== undefined ? { config: c.config } : {}),
+    };
+    const r = connect(next, input, policy);
+    if (r.ok) {
+      next = r.value.graph;
+      copied.push(r.value.connectionId);
+    }
+  }
+  return ok({ graph: next, nodeId: newId, copiedConnectionIds: copied });
+};
+
+/** web-1 → web-2 (next free number); other names get a numeric suffix. */
+const nextCopyName = (graph: InfrastructureGraph, name: string): string => {
+  const base = name.replace(/-\d+$/, '');
+  const used = new Set(Object.values(graph.nodes).map((n) => n.name));
+  for (let i = 2; ; i++) {
+    const candidate = `${base}-${i}`;
+    if (!used.has(candidate)) return candidate;
+  }
+};

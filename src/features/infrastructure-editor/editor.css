@@ -330,3 +330,13 @@ fieldset.rules {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+.duplicate-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+.duplicate-row .secondary-button {
+  align-self: flex-start;
+}

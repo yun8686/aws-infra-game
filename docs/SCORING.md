@@ -40,7 +40,7 @@ Maintainability is not scored in the MVP.
 
 ## Mission 1: TV traffic spike (`tv-spike`)
 
-- Start: `ecommerce-starter` template. `rds-1` is `no-delete` (the customer's data must be kept).
+- Start: `ecommerce-starter` template (two small EC2 instances `web-1`/`web-2` in az-a, a small single-AZ database). `rds-1` is `no-delete` (the customer's data must be kept).
 - Scenario: `tv-spike-incident`, seed 7.
 - Objectives: error rate ≤ 1%, p95 ≤ 400 ms, availability ≥ 97%, monthly budget ≤ 16,000 cr.
 - Weights: availability 3, performance 3, cost 2, security 2.
@@ -50,10 +50,10 @@ Calibration (verified by `tests/integration/missions.test.ts`):
 | Architecture | Result |
 |---|---|
 | Template as is | Fails availability and performance (compute saturated) |
-| EC2 × 12 only | Fails (database connections and capacity) |
-| EC2 × 12 + db.large (static over-provisioning) | Meets SLOs, **fails budget** (~18,980 cr) |
+| 12 EC2 instances only | Fails (database connections and capacity) |
+| 12 EC2 instances + db.large (static over-provisioning) | Meets SLOs, **fails budget** (~18,980 cr) |
 | Reference A: Auto Scaling small 2–14 @60% + db.large | Passes (~11,700 cr) |
 | Reference B: Auto Scaling medium 2–8 @50% + db.large | Passes (~13,150 cr) |
 | Reference A + DB port open to anywhere | Fails security |
-| EC2 × 12 with the database link removed (playtest exploit, fixed in engine 3) | Fails (`no_database`) |
+| 12 EC2 instances with their database links removed (playtest exploit, fixed in engine 3) | Fails (`no_database`) |
 | Reference A with the default warm-up (180 s) | Narrowly fails availability (scale-out too slow for the ramp) — an intended iteration step |

@@ -32,7 +32,7 @@ export const SERVICE_TEXT_JA: { readonly [K in ServiceTypeId]: ServiceText } = {
   'compute.ec2': {
     name: 'サーバー (EC2)',
     short: 'EC2',
-    description: '台数固定のアプリケーションサーバー群です。',
+    description: '1台の仮想サーバーです。1つのサブネットに配置します。',
   },
   'compute.autoscaling': {
     name: 'Auto Scaling',

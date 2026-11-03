@@ -1,7 +1,7 @@
 /**
  * Template for the first mission (TV traffic spike): a small e-commerce site.
  * Intentional weaknesses for the player to discover:
- * - the web tier is a fixed group of 2 small instances in a single AZ,
+ * - the web tier is two small EC2 instances, both in the same AZ,
  * - the database is a small single-AZ instance.
  * Stored as plain data and parsed through the same schema as saves.
  */
@@ -62,12 +62,8 @@ export const ecommerceStarterTemplate: unknown = {
         healthCheck: { intervalSec: 30, unhealthyThreshold: 3 },
       },
     },
-    'ec2-1': {
-      id: 'ec2-1',
-      serviceType: 'compute.ec2',
-      name: 'web',
-      config: { instanceSize: 'small', instanceCount: 2 },
-    },
+    'ec2-1': { id: 'ec2-1', serviceType: 'compute.ec2', name: 'web-1', config: { instanceSize: 'small' } },
+    'ec2-2': { id: 'ec2-2', serviceType: 'compute.ec2', name: 'web-2', config: { instanceSize: 'small' } },
     'rds-1': {
       id: 'rds-1',
       serviceType: 'database.rds',
@@ -88,14 +84,18 @@ export const ecommerceStarterTemplate: unknown = {
         ['alb-1', 'subnet-1', 'placed_in'],
         ['alb-1', 'subnet-2', 'placed_in'],
         ['ec2-1', 'subnet-3', 'placed_in'],
+        ['ec2-2', 'subnet-3', 'placed_in'],
         ['rds-1', 'subnet-3', 'placed_in'],
         ['rds-1', 'subnet-4', 'placed_in'],
         ['alb-1', 'sg-1', 'secured_by'],
         ['ec2-1', 'sg-2', 'secured_by'],
+        ['ec2-2', 'sg-2', 'secured_by'],
         ['rds-1', 'sg-3', 'secured_by'],
         ['internet-1', 'alb-1', 'routes_to'],
         ['alb-1', 'ec2-1', 'routes_to'],
+        ['alb-1', 'ec2-2', 'routes_to'],
         ['ec2-1', 'rds-1', 'data_access', { poolSize: 10 }],
+        ['ec2-2', 'rds-1', 'data_access', { poolSize: 10 }],
       ] as const
     ).map(([sourceNodeId, targetNodeId, connectionType, config], i) => {
       const id = `conn-${i + 1}`;

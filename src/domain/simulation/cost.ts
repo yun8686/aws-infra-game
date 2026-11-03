@@ -10,7 +10,7 @@ export const nodeCostPerHour = (node: InfraNode, runningInstances?: number): num
     case 'compute.ec2': {
       const cfg = readConfig(node, 'compute.ec2');
       if (!cfg) return 0;
-      return BALANCE.instance[cfg.instanceSize].costPerHour * (runningInstances ?? cfg.instanceCount);
+      return BALANCE.instance[cfg.instanceSize].costPerHour * (runningInstances ?? 1);
     }
     case 'compute.autoscaling': {
       const cfg = readConfig(node, 'compute.autoscaling');

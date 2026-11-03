@@ -10,12 +10,31 @@ const sheet = (page: Page) => page.getByRole('dialog');
 test('change a setting, see the cost estimate move, and undo it', async ({ page }) => {
   await openArchitecture(page);
   await expect(page.locator('.project-header')).toContainText('月額 5,110 cr');
-  await page.getByRole('button', { name: 'EC2 web' }).tap();
-  await sheet(page).getByRole('button', { name: '台数を増やす' }).tap();
-  await expect(sheet(page).getByLabel('台数', { exact: true })).toHaveValue('3');
+  await page.getByRole('button', { name: /EC2 web-1/ }).tap();
+  await sheet(page).getByLabel('インスタンスサイズ').selectOption('medium');
+  await expect(page.getByRole('button', { name: /EC2 web-1 medium・100 rps/ })).toBeVisible();
   await expect(page.locator('.project-header')).toContainText('月額 5,840 cr');
   await page.getByRole('button', { name: '元に戻す' }).first().tap();
   await expect(page.locator('.project-header')).toContainText('月額 5,110 cr');
+});
+
+test('launch another EC2 instance with the same settings in another AZ', async ({ page }) => {
+  await openArchitecture(page);
+  await page.getByRole('button', { name: /EC2 web-1/ }).tap();
+  // A single instance has no count to change and belongs to one subnet.
+  await expect(sheet(page).getByLabel('台数', { exact: true })).toHaveCount(0);
+  await sheet(page).getByRole('button', { name: '＋ 同じ設定でもう1台' }).tap();
+  await expect(sheet(page)).toContainText('配置先を選択');
+  await sheet(page)
+    .getByRole('button', { name: /SUB private-b/ })
+    .tap();
+  // Back on the new instance, with its settings and connections copied.
+  const overview = sheet(page).getByLabel('現在の設定の概要');
+  await expect(overview).toContainText('private-b（az-b・プライベート）');
+  await expect(overview).toContainText('web-sg');
+  await expect(overview).toContainText('shop-db（プール 10）');
+  await expect(page.locator('.project-header')).toContainText('月額 5,840 cr');
+  await expect(page.getByRole('button', { name: /EC2 web-3/ })).toBeVisible();
 });
 
 test('invalid connections are explained, locked resources cannot be deleted', async ({ page }) => {
@@ -62,12 +81,14 @@ test('solve the TV spike mission with taps only (reference solution A)', async (
   await expect(max).toHaveValue('14');
   await sheet(page).getByRole('button', { name: '閉じる' }).tap();
 
-  // Remove the fixed web tier; the confirmation lists dependent connections.
-  await page.getByRole('button', { name: 'EC2 web' }).tap();
-  await sheet(page).getByRole('button', { name: '削除' }).tap();
-  await expect(sheet(page)).toContainText('次の接続も一緒に削除されます');
-  await sheet(page).getByRole('button', { name: '削除する' }).tap();
-  await expect(page.getByRole('button', { name: 'EC2 web' })).toHaveCount(0);
+  // Remove the two fixed web servers; the confirmation lists dependent connections.
+  for (const name of [/EC2 web-1/, /EC2 web-2/]) {
+    await page.getByRole('button', { name }).tap();
+    await sheet(page).getByRole('button', { name: '削除' }).tap();
+    await expect(sheet(page)).toContainText('次の接続も一緒に削除されます');
+    await sheet(page).getByRole('button', { name: '削除する' }).tap();
+  }
+  await expect(page.getByRole('button', { name: /EC2 web/ })).toHaveCount(0);
 
   // Upgrade the database.
   await page.getByRole('button', { name: 'RDS shop-db' }).tap();

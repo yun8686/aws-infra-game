@@ -24,6 +24,7 @@ Every core operation works with taps only (ADR 0002). Dragging is never required
 | Add a service | ＋ 追加 → pick from categories (system and mission-disallowed services are hidden) → for services that need placement, the **配置先を選択** step opens immediately |
 | Connect | Node sheet → 接続を追加 → valid targets are highlighted on the canvas and listed in the sheet; invalid ones are dimmed and explain why when tapped. Direction is inferred, so tap order does not matter. If several connection types fit, a chooser appears |
 | Edit a connection | Tap a traffic/data line, or a connection in the node sheet |
+| Add another identical server | EC2 sheet → **＋ 同じ設定でもう1台** → choose its subnet (size, security groups, load balancer and database connections are copied) |
 | Delete | Node sheet → 削除 → confirmation lists connections and security-group rules removed with it → undo available |
 | Fix problems | 構成チェック → tap a finding → its resource opens |
 

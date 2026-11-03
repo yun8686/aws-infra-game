@@ -10,6 +10,7 @@ import {
   addNode,
   connect,
   disconnect,
+  duplicateNode,
   removeNode,
   renameNode,
   updateConnectionConfig,
@@ -141,7 +142,11 @@ export function ArchitectureTab({
       setMessage(c.reasons[0] ? findingMessage(c.reasons[0]) : 'この組み合わせは接続できません');
       return;
     }
-    if (c.options.length === 1) doConnect(c.options[0] as ConnectInput, mode.onlyType === 'placed_in');
+    // Stay in the placement step only while more subnets can be added (not for a single EC2 instance).
+    const maxPlacements =
+      getServiceDefinition(graph?.nodes[mode.nodeId]?.serviceType ?? '')?.placement?.max ?? 1;
+    if (c.options.length === 1)
+      doConnect(c.options[0] as ConnectInput, mode.onlyType === 'placed_in' && maxPlacements > 1);
     else setMode({ kind: 'chooseType', nodeId: mode.nodeId, options: c.options });
   };
 
@@ -276,6 +281,21 @@ export function ArchitectureTab({
           onCommitConfig={commitNodeConfig(mode.nodeId)}
           onRename={(name) => store.edit(projectId, (g) => renameNode(g, mode.nodeId, name))}
           onConnect={() => setMode({ kind: 'connect', nodeId: mode.nodeId })}
+          onDuplicate={
+            graph.nodes[mode.nodeId]?.serviceType === 'compute.ec2'
+              ? () => {
+                  const r = store.edit(projectId, (g, p) => duplicateNode(g, mode.nodeId, p));
+                  if (!r) return;
+                  if (!r.ok) {
+                    showToast(r.error.map(findingMessage).join(' '));
+                    return;
+                  }
+                  const name = r.value.graph.nodes[r.value.nodeId]?.name ?? '';
+                  showToast(`${name} を追加しました。配置先を選んでください`, true);
+                  setMode({ kind: 'connect', nodeId: r.value.nodeId, onlyType: 'placed_in' });
+                }
+              : undefined
+          }
           onSelectConnection={(id) => setMode({ kind: 'connection', connectionId: id })}
           onDelete={() => setMode({ kind: 'confirmDelete', nodeId: mode.nodeId })}
         />

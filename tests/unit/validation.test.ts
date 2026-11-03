@@ -26,6 +26,7 @@ describe('validateGraph — start states', () => {
     // Only the advisory about the deliberately single-AZ web tier (a lesson in the mission).
     expect(report.findings.map((f) => [f.code, f.severity, f.nodeIds])).toEqual([
       ['placement.single_az_compute', 'info', ['ec2-1']],
+      ['placement.single_az_compute', 'info', ['ec2-2']],
     ]);
     expect(report.canSimulate).toBe(true);
   });
@@ -37,7 +38,7 @@ describe('validateGraph — structure', () => {
       schemaVersion: 1,
       nodes: {
         a: { id: 'a', serviceType: 'compute.lambda', name: 'a', config: {} },
-        b: { id: 'b', serviceType: 'compute.ec2', name: 'b', config: { instanceSize: 'small' } },
+        b: { id: 'b', serviceType: 'compute.ec2', name: 'b', config: { instanceSize: 'tiny' } },
       },
       connections: { c: { id: 'c', sourceNodeId: 'b', targetNodeId: 'zzz', connectionType: 'routes_to' } },
     };
@@ -130,8 +131,11 @@ describe('validateGraph — placement and dependencies', () => {
     const blocked = validateGraph(g).findings.filter(
       (f) => f.code === 'dependency.traffic_blocked_by_security_group',
     );
-    expect(blocked).toHaveLength(1);
-    expect(blocked[0]?.nodeIds).toEqual([s.web, s.db]);
+    expect(blocked).toHaveLength(2);
+    expect(blocked.map((f) => f.nodeIds)).toEqual([
+      [s.web, s.db],
+      [s.web2, s.db],
+    ]);
   });
 
   it('accepts a vpc-scoped rule for traffic inside the VPC', () => {
@@ -207,5 +211,20 @@ describe('validateGraph — determinism', () => {
   it('returns identical output for identical input', () => {
     const g = buildWebStackFromBaseline().b.graph;
     expect(validateGraph(g)).toEqual(validateGraph(structuredClone(g)));
+  });
+});
+
+describe('redundancy advisory per serving group (ADR 0015)', () => {
+  it('advises when every server behind a load balancer is in one AZ, and stops once another AZ is used', async () => {
+    const { setWebServers } = await import('../fixtures/solutions');
+    const { TEMPLATES } = await import('../../src/data/templates');
+    const single = setWebServers(TEMPLATES['ecommerce-starter'](), 3);
+    expect(
+      validateGraph(single).findings.filter((f) => f.code === 'placement.single_az_compute'),
+    ).toHaveLength(3);
+    const spread = setWebServers(TEMPLATES['ecommerce-starter'](), 3, { subnets: ['subnet-4'] });
+    expect(validateGraph(spread).findings.filter((f) => f.code === 'placement.single_az_compute')).toEqual(
+      [],
+    );
   });
 });

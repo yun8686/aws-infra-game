@@ -4,22 +4,12 @@ import { sourcesOf, targetsOf, incoming, outgoing } from '../../domain/graph/gra
 import { azsOf, securityGroupsOf, subnetsOf } from '../../domain/graph/network';
 import type { InfrastructureGraph, NodeId } from '../../domain/graph/types';
 import type { PartRole } from './layout/tierLayout';
+import { BALANCE } from '../../domain/simulation/balance';
 
 /**
  * Plain-language summaries of a resource's key settings, so the diagram and the sheet show
  * what is configured without opening every form. Presentation only; numbers come from config.
  */
-
-/** Instances a fixed group runs in one AZ (round-robin, as in the simulation). */
-export const instancesInAz = (
-  count: number,
-  azs: readonly AvailabilityZone[],
-  az: AvailabilityZone,
-): number => {
-  const i = azs.indexOf(az);
-  if (i < 0 || azs.length === 0) return 0;
-  return Math.floor(count / azs.length) + (i < count % azs.length ? 1 : 0);
-};
 
 /** One short line for a drawn part of a resource. */
 export const partSummary = (
@@ -30,10 +20,7 @@ export const partSummary = (
   const node = graph.nodes[nodeId];
   if (!node) return '';
   const ec2 = readConfig(node, 'compute.ec2');
-  if (ec2) {
-    const n = part.az ? instancesInAz(ec2.instanceCount, azsOf(graph, nodeId), part.az) : ec2.instanceCount;
-    return `${ec2.instanceSize} × ${n}台`;
-  }
+  if (ec2) return `${ec2.instanceSize}・${BALANCE.instance[ec2.instanceSize].capacityRps} rps`;
   const asg = readConfig(node, 'compute.autoscaling');
   if (asg) return `${asg.instanceSize}・${asg.minCapacity}〜${asg.maxCapacity}台`;
   const rds = readConfig(node, 'database.rds');
@@ -106,13 +93,10 @@ export const describeNode = (graph: InfrastructureGraph, nodeId: NodeId): Overvi
 
   const ec2 = readConfig(node, 'compute.ec2');
   if (ec2) {
-    const azs = azsOf(graph, nodeId);
+    const size = BALANCE.instance[ec2.instanceSize];
     out.push({
-      label: '台数',
-      value:
-        azs.length > 1
-          ? `${ec2.instanceCount}台（${azs.map((az) => `${az}: ${instancesInAz(ec2.instanceCount, azs, az)}台`).join('、')}）`
-          : `${ec2.instanceCount}台（固定）`,
+      label: 'サーバー',
+      value: `1台・${ec2.instanceSize}（処理能力 ${size.capacityRps} rps・${size.costPerHour} cr/時）。故障しても自動では復旧しません`,
     });
   }
   const asg = readConfig(node, 'compute.autoscaling');

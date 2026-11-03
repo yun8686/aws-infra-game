@@ -65,7 +65,7 @@ describe('app store', () => {
     expect(Object.keys(s.projects)).toEqual([a, b]);
     expect(s.projects[a]?.graph).toEqual(TEMPLATES['ecommerce-starter']());
     expect(Object.keys(s.projects[b]?.graph.nodes ?? {})).toEqual(['internet-1']);
-    store.getState().applyGraph(a, setConfig(s.projects[a]!.graph, 'ec2-1', { instanceCount: 3 }));
+    store.getState().applyGraph(a, setConfig(s.projects[a]!.graph, 'ec2-1', { instanceSize: 'large' }));
     expect(store.getState().projects[b]?.graph).toEqual(s.projects[b]?.graph);
   });
 
@@ -74,7 +74,7 @@ describe('app store', () => {
     await store.getState().init();
     const id = store.getState().startProject('tv-spike');
     const g0 = store.getState().projects[id]!.graph;
-    const g1 = setConfig(g0, 'ec2-1', { instanceCount: 4 });
+    const g1 = setConfig(g0, 'ec2-1', { instanceSize: 'large' });
     store.getState().applyGraph(id, g1);
     expect(store.getState().saveState[id]).toBe('dirty');
     expect(canUndoProject(store.getState(), id)).toBe(true);
@@ -128,15 +128,15 @@ describe('autosave', () => {
     const autosave = startAutosave(store, repo, { delayMs: 500 });
     const id = store.getState().startProject('tv-spike');
     const g = store.getState().projects[id]!.graph;
-    store.getState().applyGraph(id, setConfig(g, 'ec2-1', { instanceCount: 3 }));
-    store.getState().applyGraph(id, setConfig(g, 'ec2-1', { instanceCount: 5 }));
+    store.getState().applyGraph(id, setConfig(g, 'ec2-1', { instanceSize: 'medium' }));
+    store.getState().applyGraph(id, setConfig(g, 'ec2-1', { instanceSize: 'xlarge' }));
     expect(repo.records.size).toBe(0);
     await vi.advanceTimersByTimeAsync(500);
     expect(store.getState().saveState[id]).toBe('saved');
     const saved = parseProject(repo.records.get(id));
     expect(
-      saved.ok && (saved.value.graph.nodes['ec2-1']?.config as { instanceCount: number }).instanceCount,
-    ).toBe(5);
+      saved.ok && (saved.value.graph.nodes['ec2-1']?.config as { instanceSize: string }).instanceSize,
+    ).toBe('xlarge');
     autosave.dispose();
   });
 
@@ -184,7 +184,7 @@ describe('run staleness and focus routes', () => {
     expect(isRunStale(store.getState(), id)).toBe(false);
     store
       .getState()
-      .applyGraph(id, setConfig(store.getState().projects[id]!.graph, 'ec2-1', { instanceCount: 3 }));
+      .applyGraph(id, setConfig(store.getState().projects[id]!.graph, 'ec2-1', { instanceSize: 'large' }));
     expect(isRunStale(store.getState(), id)).toBe(true);
     store.getState().undo(id);
     expect(isRunStale(store.getState(), id)).toBe(false);

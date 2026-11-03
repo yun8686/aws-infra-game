@@ -12,6 +12,7 @@ import {
   overProvisioned,
   replaceWebWithAutoScaling,
   setConfig,
+  setWebServers,
   solutionA,
   solutionB,
 } from '../fixtures/solutions';
@@ -64,9 +65,11 @@ describe('mission: TV traffic spike — reference solutions', () => {
   });
 
   it('regression (playtest): disconnecting the web tier from its database is not a shortcut', () => {
-    const conn = Object.values(start.connections).find((c) => c.connectionType === 'data_access');
-    if (!conn) throw new Error('fixture');
-    const g = unwrap(disconnect(setConfig(start, 'ec2-1', { instanceCount: 12 }), conn.id, policy)).graph;
+    // Twelve web servers, none of them connected to the database.
+    let g = setWebServers(start, 12, { policy });
+    for (const c of Object.values(g.connections).filter((x) => x.connectionType === 'data_access')) {
+      g = unwrap(disconnect(g, c.id, policy)).graph;
+    }
     expect(validateGraph(g).findings.map((f) => f.code)).toContain('dependency.compute_without_database');
     const r = play(g);
     expect(r.evaluation.passed).toBe(false);
@@ -81,7 +84,7 @@ describe('mission: TV traffic spike — reference solutions', () => {
   });
 
   it('scaling compute without the database is not enough', () => {
-    const r = play(setConfig(start, 'ec2-1', { instanceCount: 12 }));
+    const r = play(setWebServers(start, 12, { policy }));
     expect(r.evaluation.passed).toBe(false);
     expect(r.evaluation.keyBottlenecks.map((b) => b.cause)).toContain('db_connections');
   });

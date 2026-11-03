@@ -1,6 +1,7 @@
 import {
   addNode,
   connect,
+  duplicateNode,
   removeNode,
   updateNodeConfig,
   type EditPolicy,
@@ -14,6 +15,42 @@ export const setConfig = (
   patch: Record<string, unknown>,
   policy: EditPolicy = {},
 ) => unwrap(updateNodeConfig(g, id, { ...(g.nodes[id]?.config as object), ...patch }, policy)).graph;
+
+const webServerIds = (g: InfrastructureGraph): string[] =>
+  Object.values(g.nodes)
+    .filter((n) => n.serviceType === 'compute.ec2')
+    .map((n) => n.id)
+    .sort((a, b) => Number(a.split('-')[1]) - Number(b.split('-')[1]));
+
+/**
+ * Make exactly `count` web EC2 instances, copying the first one ("launch another like this") and
+ * placing new ones round-robin over `subnets`. Removes the newest instances when reducing.
+ */
+export const setWebServers = (
+  g: InfrastructureGraph,
+  count: number,
+  options: { subnets?: readonly string[]; size?: string; policy?: EditPolicy } = {},
+): InfrastructureGraph => {
+  const subnets = options.subnets ?? ['subnet-3'];
+  const policy = options.policy ?? {};
+  let graph = g;
+  while (webServerIds(graph).length < count) {
+    const first = webServerIds(graph)[0];
+    if (!first) throw new Error('no web server to copy');
+    const d = unwrap(duplicateNode(graph, first, policy));
+    const subnet = subnets[(webServerIds(d.graph).length - 1) % subnets.length] as string;
+    graph = unwrap(
+      connect(d.graph, { sourceNodeId: d.nodeId, targetNodeId: subnet, connectionType: 'placed_in' }, policy),
+    ).graph;
+  }
+  while (webServerIds(graph).length > count) {
+    graph = unwrap(removeNode(graph, webServerIds(graph).at(-1) as string, policy)).graph;
+  }
+  if (options.size)
+    for (const id of webServerIds(graph))
+      graph = setConfig(graph, id, { instanceSize: options.size }, policy);
+  return graph;
+};
 
 /** Replace the template's fixed web tier with an Auto Scaling group across both private subnets. */
 export const replaceWebWithAutoScaling = (
@@ -39,7 +76,7 @@ export const replaceWebWithAutoScaling = (
   graph = unwrap(
     connect(graph, { sourceNodeId: id, targetNodeId: 'rds-1', connectionType: 'data_access' }, policy),
   ).graph;
-  graph = unwrap(removeNode(graph, 'ec2-1', policy)).graph;
+  for (const web of webServerIds(graph)) graph = unwrap(removeNode(graph, web, policy)).graph;
   return { graph, asgId: id };
 };
 
@@ -76,4 +113,4 @@ export const solutionB = (template: InfrastructureGraph, policy: EditPolicy = {}
 
 /** Meets the SLOs with static over-provisioning, but costs more than the budget allows. */
 export const overProvisioned = (template: InfrastructureGraph) =>
-  setConfig(setConfig(template, 'ec2-1', { instanceCount: 12 }), 'rds-1', { instanceClass: 'db.large' });
+  setConfig(setWebServers(template, 12), 'rds-1', { instanceClass: 'db.large' });

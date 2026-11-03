@@ -84,7 +84,7 @@ Traffic enters through a non-AWS, system-managed `external.internet` node. Every
 
 Status: Accepted (2026-11-03)
 
-- EC2 node = fixed-count instance group. Auto Scaling node = instance spec + scaling policy (independent node, not attached to EC2).
+- ~~EC2 node = fixed-count instance group.~~ Superseded by ADR 0015. Auto Scaling node = instance spec + scaling policy (independent node, not attached to EC2).
 - Security Group is a node, applied via `secured_by`. Rule sources: `anywhere`, `vpc`, or a reference to another SG node.
 - Subnet public/private is a config field (`tier`); IGW/NAT/Route Table are deferred.
 - AZ is a subnet config value using fictional names (`az-a`, `az-b`, `az-c`).
@@ -107,3 +107,11 @@ The app is an installable PWA (manifest, icons) with a small hand-written servic
 Status: Accepted (2026-11-03)
 
 Per product direction, keyboard operation is not a requirement for now. Existing keyboard affordances are kept but not extended or tested. Touch and screen-reader basics (accessible names, contrast, reduced motion) are checked with axe in E2E.
+
+## 0015 — An EC2 node is one instance in one subnet
+
+Status: Accepted (2026-11-03). Supersedes the EC2 part of ADR 0011.
+
+Playtest feedback: a configurable instance count and placement in several subnets do not exist for a real EC2 instance and made the configuration hard to understand. An EC2 node now represents exactly one instance: its only setting is the instance size and it is placed in exactly one subnet. More fixed servers are separate EC2 nodes, created quickly with "同じ設定でもう1台" (copies size, security groups, load-balancer and database connections; the player chooses the subnet). Changing the number of instances automatically is the job of Auto Scaling.
+
+Consequences: the e-commerce template has two EC2 nodes (web-1, web-2) in the same AZ; monitoring summarises all EC2 instances as one series; saves made before this change lose the old instance count and EC2 nodes placed in several subnets show a placement error (prototype saves are not migrated).

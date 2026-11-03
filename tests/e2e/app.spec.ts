@@ -19,7 +19,7 @@ test('a new player can take the TV spike job and read the brief', async ({ page 
 test('tabs keep project state and the back button returns to the list', async ({ page }) => {
   await startTvSpike(page);
   await page.getByRole('link', { name: /構成/ }).tap();
-  await page.getByRole('button', { name: 'EC2 web' }).tap();
+  await page.getByRole('button', { name: /EC2 web-1/ }).tap();
   await expect(page.getByRole('dialog')).toContainText('サーバー (EC2)');
   await page.getByRole('link', { name: /結果/ }).tap();
   await page.getByRole('button', { name: /シミュレーションを実行/ }).tap();

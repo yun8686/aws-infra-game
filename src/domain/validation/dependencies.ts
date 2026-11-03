@@ -69,9 +69,21 @@ export const dependencyFindings = (graph: InfrastructureGraph): Finding[] => {
     }
   }
 
-  for (const compute of computes) {
-    if (reachable.has(compute.id) && azsOf(graph, compute.id).length === 1) {
-      out.push(finding('placement.single_az_compute', 'info', 'placement', { nodeIds: [compute.id] }));
+  // Redundancy advisory per serving group: the servers a router (load balancer or Internet) sends
+  // traffic to. A single EC2 instance is always in one AZ (ADR 0015), so the group is what matters.
+  const advised = new Set<string>();
+  for (const router of [...internets, ...nodesOfType(graph, 'lb.alb')]) {
+    if (!reachable.has(router.id)) continue;
+    const group = outgoing(graph, router.id, 'routes_to')
+      .map((c) => c.targetNodeId)
+      .filter((id) => computes.some((c) => c.id === id));
+    if (group.length === 0) continue;
+    const azs = new Set(group.flatMap((id) => azsOf(graph, id)));
+    if (azs.size !== 1) continue;
+    for (const id of group) {
+      if (advised.has(id)) continue;
+      advised.add(id);
+      out.push(finding('placement.single_az_compute', 'info', 'placement', { nodeIds: [id] }));
     }
   }
 

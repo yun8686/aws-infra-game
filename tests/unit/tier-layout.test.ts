@@ -20,13 +20,13 @@ describe('tier × AZ layout', () => {
     const g = TEMPLATES['ecommerce-starter']();
     const layout = layoutGraph(g);
     expect(layout.columns).toEqual(['az-a', 'az-b']);
-    expect(layout.nodes.map((n) => n.id).sort()).toEqual(['alb-1', 'ec2-1', 'internet-1', 'rds-1']);
+    expect(layout.nodes.map((n) => n.id).sort()).toEqual(['alb-1', 'ec2-1', 'ec2-2', 'internet-1', 'rds-1']);
     expect(layout.chips.map((c) => c.id)).toEqual(['sg-1', 'sg-2', 'sg-3']);
     const y = (id: string) => layout.nodes.find((n) => n.id === id)?.y ?? NaN;
     expect(y('internet-1')).toBeLessThan(y('alb-1'));
     expect(y('alb-1')).toBeLessThan(y('ec2-1'));
     expect(y('ec2-1')).toBeLessThan(y('rds-1'));
-    expect(layout.edges).toHaveLength(3);
+    expect(layout.edges).toHaveLength(5); // internet→alb, alb→web-1/web-2, web-1/web-2→db
   });
 
   it('is deterministic and ignores insertion order', () => {

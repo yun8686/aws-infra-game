@@ -105,16 +105,12 @@ export const SERVICE_FIELDS: { readonly [K in ServiceTypeId]: readonly FieldSpec
     },
   ],
   'compute.ec2': [
-    { kind: 'select', path: ['instanceSize'], label: 'インスタンスサイズ', options: sizeOptions },
     {
-      kind: 'int',
-      path: ['instanceCount'],
-      label: '台数',
-      min: 1,
-      max: 20,
-      step: 1,
-      unit: '台',
-      help: '台数は固定です。故障しても自動では復旧しません。',
+      kind: 'select',
+      path: ['instanceSize'],
+      label: 'インスタンスサイズ',
+      options: sizeOptions,
+      help: 'EC2 は1台の仮想サーバーです。台数を増やすには「同じ設定でもう1台」で追加するか、Auto Scaling を使います。',
     },
   ],
   'compute.autoscaling': [

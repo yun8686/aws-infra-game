@@ -39,9 +39,9 @@ export const albConfigSchema = z.object({
   }),
 });
 
+/** One EC2 instance (ADR 0015): a size, one subnet. More servers = more EC2 nodes or Auto Scaling. */
 export const ec2ConfigSchema = z.object({
   instanceSize: z.enum(INSTANCE_SIZES),
-  instanceCount: z.int().min(1).max(20),
 });
 
 export const autoScalingConfigSchema = z
@@ -167,8 +167,9 @@ export const SERVICE_DEFINITIONS: ServiceDefinitions = {
     idPrefix: 'ec2',
     iconKey: 'server',
     configSchema: ec2ConfigSchema,
-    defaultConfig: { instanceSize: 'small', instanceCount: 1 },
-    placement: { targets: ['network.subnet'], min: 1, max: 3 },
+    defaultConfig: { instanceSize: 'small' },
+    // A single instance lives in exactly one subnet.
+    placement: { targets: ['network.subnet'], min: 1, max: 1 },
     simModel: 'computeFixed',
     costModel: 'perInstanceHour',
     inboundPort: () => PORTS.app,
