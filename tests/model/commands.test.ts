@@ -134,7 +134,7 @@ describe('resources', () => {
     const { b, db, privA } = standardStack();
     const policy = { lockedIds: [db], allowedTypes: ['ec2' as const] };
     expect(remove(b.d, db, policy)).toMatchObject({ ok: false, finding: { code: 'edit.locked' } });
-    expect(rename(b.d, db, 'x', policy).ok).toBe(false);
+    expect(rename(b.d, db, 'x').ok).toBe(true);
     expect(addResource(b.d, 'asg', 'vpc-1', {}, policy)).toMatchObject({
       ok: false,
       finding: { code: 'edit.type_not_allowed' },

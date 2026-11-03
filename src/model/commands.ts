@@ -35,6 +35,7 @@ export type EditResult = { ok: true; diagram: Diagram; id: string } | { ok: fals
 
 /** Mission restrictions applied on top of the model rules. */
 export interface EditPolicy {
+  /** Resources the customer requires to keep: they can be reconfigured but not removed. */
   readonly lockedIds?: readonly string[];
   /** Resource types the player may add; undefined = all. */
   readonly allowedTypes?: readonly ResourceType[];
@@ -260,13 +261,7 @@ export const addResource = <T extends ResourceType>(
 // ---- Updates -------------------------------------------------------------------------
 
 /** Replaces the config of a frame, resource or link after schema and reference checks. */
-export const updateConfig = (
-  d: Diagram,
-  id: string,
-  config: unknown,
-  policy: EditPolicy = {},
-): EditResult => {
-  if (isLocked(policy, id)) return reject('edit.locked', [id]);
+export const updateConfig = (d: Diagram, id: string, config: unknown): EditResult => {
   const frame = d.frames[id];
   if (frame) {
     if (FRAME_DEFINITIONS[frame.kind].systemManaged) return reject('edit.system_managed', [id]);
@@ -314,11 +309,10 @@ export const updateConfig = (
   return reject('edit.not_found', [id]);
 };
 
-export const rename = (d: Diagram, id: string, name: string, policy: EditPolicy = {}): EditResult => {
+export const rename = (d: Diagram, id: string, name: string): EditResult => {
   const trimmed = name.trim();
   if (trimmed.length === 0 || trimmed.length > 40)
     return reject('edit.invalid_config', [id], { field: 'name' });
-  if (isLocked(policy, id)) return reject('edit.locked', [id]);
   const frame = d.frames[id];
   if (frame) return ok({ ...d, frames: { ...d.frames, [id]: { ...frame, name: trimmed } } }, id);
   const resource = d.resources[id];
@@ -327,15 +321,9 @@ export const rename = (d: Diagram, id: string, name: string, policy: EditPolicy 
 };
 
 /** Moves a resource to another frame of its kind inside the same VPC (e.g. an EC2 instance to another subnet). */
-export const moveResource = (
-  d: Diagram,
-  id: string,
-  frameId: string,
-  policy: EditPolicy = {},
-): EditResult => {
+export const moveResource = (d: Diagram, id: string, frameId: string): EditResult => {
   const r = getResource(d, id);
   if (!r) return reject('edit.not_found', [id]);
-  if (isLocked(policy, id)) return reject('edit.locked', [id]);
   const def = resourceDef(r.type);
   if (def.systemManaged) return reject('edit.system_managed', [id]);
   const frame = getFrame(d, frameId);

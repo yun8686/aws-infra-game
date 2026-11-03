@@ -12,11 +12,18 @@ export default tseslint.config(
     plugins: { 'react-hooks': reactHooks },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },
   },
   {
     // Domain logic must stay independent of UI and non-deterministic globals.
-    files: ['src/domain/**/*.ts', 'src/model/**/*.ts', 'src/sim/**/*.ts', 'src/game/**/*.ts'],
+    files: [
+      'src/domain/**/*.ts',
+      'src/model/**/*.ts',
+      'src/sim/**/*.ts',
+      'src/game/**/*.ts',
+      'src/content/**/*.ts',
+    ],
     rules: {
       'no-restricted-imports': [
         'error',
