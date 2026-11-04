@@ -89,8 +89,12 @@ function MultiChoices({
               type="button"
               className="choice"
               aria-pressed={on}
-              disabled={on && values.length <= min}
-              onClick={() => onChange(on ? values.filter((v) => v !== o.value) : [...values, o.value])}
+              // The last required choice stays selected (not greyed out): it just cannot be removed.
+              aria-disabled={on && values.length <= min ? true : undefined}
+              onClick={() => {
+                if (on && values.length <= min) return;
+                onChange(on ? values.filter((v) => v !== o.value) : [...values, o.value]);
+              }}
             >
               {o.label}
               {o.detail && <small>{o.detail}</small>}
@@ -98,6 +102,11 @@ function MultiChoices({
           );
         })}
       </div>
+      {min > 0 && values.length <= min && options.length > 1 && (
+        <span className="field-help">
+          {min === 1 ? '1つ以上選ぶ必要があります。' : `${min}つ以上選ぶ必要があります。`}
+        </span>
+      )}
       {help && <span className="field-help">{help}</span>}
     </fieldset>
   );
