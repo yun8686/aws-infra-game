@@ -55,7 +55,7 @@ Run: `npm run check` (unit/integration) and `npm run test:e2e` (phone-viewport E
 ## Beyond the MVP list
 
 - Free construction uses the same diagram model, commands, validation, simulation and evaluation: `game/missions.test.ts` ("a diagram drawn from scratch evaluates like the same template"), `e2e/editor.spec.ts`.
-- Autosave and corrupt-save handling: `app/projects.test.ts`; persistence across reloads: `e2e/app.spec.ts`.
+- Autosave and unreadable saves (deleted at start-up, count shown once): `app/projects.test.ts`; persistence across reloads: `e2e/app.spec.ts`.
 - Accessibility: axe serious/critical violations = 0 on the main screens (`e2e/quality.spec.ts`). Keyboard operation is out of scope for now (ADR 0014).
 
 ## Known limitations

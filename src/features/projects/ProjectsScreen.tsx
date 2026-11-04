@@ -98,8 +98,8 @@ export function ProjectsScreen() {
         {status === 'loading' && <p className="muted">読み込み中…</p>}
         {status === 'error' && <p className="text-bad">保存データを読み込めませんでした。</p>}
         {loadErrors.length > 0 && (
-          <p className="notice" role="alert">
-            読み込めない保存データが {loadErrors.length} 件あります（データは削除していません）。
+          <p className="notice" role="status">
+            以前のバージョンの形式で読み込めない保存データ {loadErrors.length} 件を削除しました。
           </p>
         )}
 

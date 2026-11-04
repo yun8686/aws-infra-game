@@ -106,7 +106,7 @@ describe('app store', () => {
     expect(!r.ok && r.error.kind).toBe('invalid_diagram');
   });
 
-  it('loads saved projects and reports corrupt ones without deleting them', async () => {
+  it('loads saved projects and deletes unreadable ones, reporting how many', async () => {
     const repo = new MemoryProjectRepository();
     await repo.save(sample('good'));
     repo.records.set('bad', { nope: true });
@@ -114,7 +114,8 @@ describe('app store', () => {
     await store.getState().init();
     expect(Object.keys(store.getState().projects)).toEqual(['good']);
     expect(store.getState().loadErrors.map((e) => e.id)).toEqual(['bad']);
-    expect(repo.records.has('bad')).toBe(true);
+    expect(repo.records.has('bad')).toBe(false);
+    expect(repo.records.has('good')).toBe(true);
   });
 });
 

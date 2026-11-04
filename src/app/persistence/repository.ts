@@ -2,7 +2,7 @@ import type { Project } from '../../game';
 
 export interface LoadResult {
   readonly projects: readonly Project[];
-  /** Saves that could not be parsed; kept in storage untouched so nothing is silently destroyed. */
+  /** Saves that could not be parsed (e.g. an older format). The app deletes them at start-up and says how many. */
   readonly corrupt: readonly { readonly id: string; readonly reason: string }[];
 }
 

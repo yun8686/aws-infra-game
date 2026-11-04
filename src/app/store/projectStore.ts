@@ -40,6 +40,7 @@ export interface AppState {
   readonly saveState: Readonly<Record<string, SaveState>>;
   /** Latest full run per project (not persisted; the summary is). */
   readonly runs: Readonly<Record<string, MissionRun>>;
+  /** Unreadable saves removed at start-up (shown once on the project list). */
   readonly loadErrors: readonly { readonly id: string; readonly reason: string }[];
   /** Selected playback minute per project, shared by the monitor and results tabs. */
   readonly playhead: Readonly<Record<string, number>>;
@@ -99,6 +100,8 @@ export const createAppStore = (deps: AppDeps): StoreApi<AppState> =>
       async init() {
         try {
           const { projects, corrupt } = await deps.repo.loadAll();
+          // Saves that no longer parse (older formats) are deleted; the list screen says how many.
+          await Promise.all(corrupt.map((c) => deps.repo.remove(c.id).catch(() => undefined)));
           set({
             status: 'ready',
             projects: Object.fromEntries(projects.map((p) => [p.id, p])),
